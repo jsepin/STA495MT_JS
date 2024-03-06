@@ -1,0 +1,346 @@
+\documentclass[11pt, a4paper]{article}
+\usepackage{geometry}
+\geometry{
+  left=2cm,
+  right=2cm,
+  top=2cm,
+  bottom=2cm,
+}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{multicol}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage[latin1]{inputenc}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows}
+\usetikzlibrary{arrows.meta}
+\usepackage{varwidth}
+\usetikzlibrary{positioning}
+
+
+\begin{document}
+\pagestyle{empty}
+\footnotesize
+
+
+% Load parameters
+<<echo=F>>=
+options(scipen = 8)
+# Load parameters defined earlier
+# setwd("/home/jerome/OneDrive/Master_Thesis/ma_js_cs1/STA495MasterThesis/report")
+boston_parameters <- readRDS("../data/boston_parameters.rds")
+range_x1 <- boston_parameters$range_x1
+range_x2 <- boston_parameters$range_x2
+gamma_true <- boston_parameters$gamma_true
+n_explore <- boston_parameters$n_explore
+
+mean_x1 <- boston_parameters$mean_x1
+mean_x2 <- boston_parameters$mean_x2
+sd_x1 <- boston_parameters$sd_x1
+sd_x2 <- boston_parameters$sd_x2
+
+no_runs <- boston_parameters$no_runs
+no_situation <- boston_parameters$no_situation
+
+beta_true <- boston_parameters$beta_true
+beta_0 <- boston_parameters$beta_0
+beta_1 <- boston_parameters$beta_1
+beta_2 <-boston_parameters$beta_2
+s_y <- boston_parameters$s_y
+
+n_obs <- boston_parameters$n_obs#####
+rho <- tanh(seq(from=boston_parameters$lower_fisher_rho, to = 0, length.out =boston_parameters$no_coll_magnitude))
+exp_fact <- expand.grid("n_obs"=n_obs,
+                        "rho"=rho,
+                        "beta_0"=beta_0,
+                        "beta_1"=beta_1,
+                        "beta_2"=beta_2,
+                        "s_y"=s_y
+                        )
+
+B <- boston_parameters$B# comes here!
+n <- nrow(exp_fact)*B
+library(xtable)
+@
+
+
+\pagebreak
+
+
+
+%%% Simulation visualization
+% Define block styles
+\tikzstyle{decision} = [diamond, draw, fill=blue!20, 
+    text width=4.5em, text badly centered, node distance=3cm, inner sep=0pt]
+\tikzstyle{block} = [rectangle, draw, fill=blue!15, 
+    text width=5em, text centered, rounded corners, minimum height=4em]
+\tikzstyle{dg} = [rectangle, draw, fill=green!15, rounded corners, minimum height=4em]  
+\tikzstyle{line} = [draw, -latex']
+\tikzstyle{cloud} = [draw, ellipse,fill=red!20, node distance=3cm,
+    minimum height=2em]
+\tikzstyle{rect} = [draw, rectangle,fill=orange!80, node distance=3cm,minimum height=2em]
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\tikzstyle{abstract}=[rectangle, draw=black, rounded corners, fill=blue, text centered, anchor=north, text=white, text width=3cm]
+\tikzstyle{comment}=[rectangle, draw=black, rounded corners, text centered, anchor=north, text=black,text width=9cm]
+% \tikzstyle{myarrow}=[->, >=open triangle 90, thick]
+% \tikzstyle{line}=[-, thick]
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\begin{figure}[h]%H is strict!
+%\begin{center} 
+\tikzstyle{every node}=[font=\footnotesize]
+\tikzset{every picture/.style={line width=0.75pt}} %set default line width to 0.75pt        
+\begin{tikzpicture}[x=0.75pt,y=0.75pt,yscale=-1,xscale=1]
+%uncomment if require: \path (0,748); %set diagram left start at 0, and has height of 748
+
+
+% True linear model rectangle
+\draw  [fill=yellow!40  ,fill opacity=1, line width=2] (0,30) -- (450,30) -- (450,90) -- (0,90) -- cycle ;
+\draw (0,30) node [anchor=north west][inner sep=0.75pt]   [align=left] {\textbf{True linear model}};
+%\path [line] (150,90) -- (150,580);
+
+
+% Text Node (Jerome)
+\node [cloud, anchor = center] at (60,60) (X_sym) {$\ \ \ \mathbf{X} \ \ \ $};
+\draw (100,60) node [anchor=center][inner sep=0.75pt]   [align=left] {$ \mathbf{\cdot}$};
+\node [rect, anchor = center] at (130,60) (beta) {$\ \ \ \mathbf{\beta} \ \ \ $};
+\draw (190,60) node [anchor=center][inner sep=0.75pt]   [align=left] {+};
+\node [cloud, anchor = center,fill=gray!10] at (250,60) (coll) {$\ \ \ \boldsymbol{\varepsilon _{y}} \ \ \ $};
+\draw (290,60) node [anchor=center][inner sep=0.75pt]   [align=left] {$ \mathbf{\cdot}$};
+\node [rect, anchor = center,fill=gray!10] at (320,60) (coll) {$\ \ \ s_{y} \ \ \ $};
+\draw (360,60) node [anchor=center][inner sep=0.75pt]   [align=left] {=};
+\node [cloud, anchor = center,fill = yellow!20] at (405,60) (coll) {$\ \ \ \boldsymbol{y} \ \ \ $};
+
+% Conclusions
+\node [rect, anchor = west,fill = yellow!20] at (470,60) (conclusion) {\begin{varwidth}{\linewidth}
+\textbf{Conclusions}
+\end{varwidth}};
+
+% Design Matrix (Inducing Collinearity)
+\node [dg, anchor = south west,fill=red!20] at (0,20) (X) {\begin{varwidth}{\linewidth}
+\textbf{Design Matrix (Collinearity):}
+\begin{itemize}[leftmargin=10pt]
+  \item \texttt{rho<-tanh(seq(\\
+  from=\Sexpr{boston_parameters$lower_fisher_rho},to=0,\\
+  length.out=\Sexpr{boston_parameters$no_coll_magnitude}))}
+  \item \texttt{n\_obs<-c(\Sexpr{n_obs})}
+  \item Distribution of $\boldsymbol{X}$ (normal)\\ 
+        \texttt{
+        X<-mvtnorm::rmvnorm(\dots)
+        }
+  \item \texttt{mean\_x1<-\Sexpr{mean_x1}; mean\_x2<-\Sexpr{mean_x2}}
+  \item \texttt{sd\_x1<-\Sexpr{sd_x1}; sd\_x2<-\Sexpr{sd_x2}}
+  \item Number of simulations $B$\texttt{<-\Sexpr{B}}
+  \end{itemize}\end{varwidth}
+};
+
+% Aim
+\node [rect, anchor = north west,fill = red!70, line width= 0.8 mm] at (210,-160) (aim) {\begin{varwidth}{\linewidth}
+\textbf{Aim:}\\ How does collinearity influence the output\\($\boldsymbol{\hat{t},\hat\beta, \text{se}(\hat\beta)}$,power) of \texttt{lm}, \texttt{tram::Lm} ?
+\end{varwidth}};
+
+% Regression
+\node [dg, anchor = south west,fill=orange!80] at (210,20) (regression) {\begin{varwidth}{\linewidth}
+\textbf{Regression parameters:}
+\begin{itemize}[leftmargin=10pt]
+  \item \texttt{beta\_0<-c(\Sexpr{beta_0})}
+  \item \texttt{beta\_1<-c(\Sexpr{beta_1})}
+  \item \texttt{beta\_2<-c(\Sexpr{beta_2})}
+  \end{itemize}\end{varwidth}
+};
+
+% Noise
+\node [dg, anchor = south west,fill=gray!10] at (375,20) (regression) {\begin{varwidth}{\linewidth}
+\textbf{Noise parameters:}
+\begin{itemize}[leftmargin=10pt]
+  \item \texttt{set.seed(\dots)}
+  \item \texttt{eps\_y<-rnorm(0,1,n=n\_obs)}
+  \item \texttt{s\_y<-c(\Sexpr{sort(s_y)})}
+  \end{itemize}\end{varwidth}
+};
+
+%%%%%%%%%%%%%%%%%% underneath %%%%%%%%%%%%%%%%%%%
+
+
+% Data-Generating-Process
+\node (dgp) [comment, rectangle split, rectangle split parts=3, rectangle split part fill={white,red!20,yellow!20}, text justified, anchor = north west] at (0,110)
+    {
+        \textbf{Data-Generating-Process:}\\
+        \texttt{
+        for(k in 1:B)\{\\
+        \hspace*{1mm} for(i in 1:nrow(experimental\_factors))\{\\
+        \hspace*{1mm} \hspace*{1mm} X<-mvtnorm::rmvnorm(n = n\_obs[i],\\
+        \hspace*{1mm} \hspace*{1mm} \hspace*{1mm} mean = c(mean\_x1,mean\_x2),\\
+        \hspace*{1mm} \hspace*{1mm} \hspace*{1mm} sigma = matrix(c(\\
+        \hspace*{1mm} \hspace*{1mm} \hspace*{1mm} sd\_x1\textasciicircum 2, rho[i]*sd\_x1*sd\_x2,\\
+        \hspace*{1mm} \hspace*{1mm} \hspace*{1mm} rho[i]*sd\_x1*sd\_x2, sd\_x2\textasciicircum 2\\
+        \hspace*{1mm} \hspace*{1mm} \hspace*{1mm} ), ncol = 2))\\
+        \hspace*{1mm} \hspace*{1mm} X<-cbind(1,X)
+        }
+        \nodepart{second}
+        \texttt{\hspace*{1mm} \hspace*{1mm}cond\_nu<-max(\\
+        \hspace*{1mm} \hspace*{1mm}\hspace*{1mm} Collinearity::Var\_decom\_mat(X)[,"cond\_ind"])}\\
+        \texttt{\hspace*{1mm} \hspace*{1mm}E<-Collinearity::equilibrate\_matrix(X)}\\
+        \texttt{\hspace*{1mm} \hspace*{1mm}trouble<-diag(solve(t(E)\%*\%E))}
+        
+        \nodepart{third}
+        \texttt{
+        \hspace*{1mm} \hspace*{-1mm} eps\_y<-rnorm(0,1,n=n\_obs[i])\\
+        \hspace*{1mm} \hspace*{1mm} y<-X\%*\%c(beta\_0[i],beta\_1[i],beta\_2[i])+eps\_y*s\_y[i]\\
+        \hspace*{1mm} \hspace*{1mm} df\_list[[length(df\_list)+1]]<-data.frame(y,X[,-1])\\
+        \hspace*{1mm} \}\\
+        \}
+        }
+        
+  };
+
+
+% Experimental factors
+\node [rect, fill=white!10, below = 20 of dgp.south west, anchor = north west] (expfact) {\begin{varwidth}{\linewidth}
+\textbf{Experimental factors (full factorial):}\\
+\texttt{experimental\_factors<-expand.grid(\dots)}\\
+\scalebox{0.9}{
+<< table1_figsim1, results = "asis", echo = FALSE,eval = T>>=
+demo_df <- readRDS("./../../../simulation/data/demo_df.rds")
+b0 <- rep(beta_0,nrow(demo_df))
+b0[demo_df$id=="..."] <-"..."
+demo_df <- cbind(demo_df[,1:3],"beta_0"=b0,demo_df[,4:6])
+xTable <- xtable(demo_df)
+print(xTable, showAllLevels = TRUE, booktabs = TRUE,include.rownames=F,floating = FALSE)
+
+
+
+# exp_fact <- cbind("row"=1:nrow(exp_fact), exp_fact)
+# exp_fact$rho <- round(as.numeric(exp_fact$rho),2)
+# xTable <- exp_fact[1:2,]
+# xTable <- rbind(xTable, rep("...", ncol(exp_fact)))
+# xTable <- rbind(xTable, exp_fact[(nrow(exp_fact)-1):nrow(exp_fact),])
+# xTable <- rbind(xTable, rep("...", ncol(exp_fact)))
+# xTable <- rbind(xTable, exp_fact[nrow(exp_fact),])
+# xTable[nrow(xTable), 1]<- paste0(B,"*",nrow(exp_fact))
+# xTable <- xtable(xTable)
+# print(xTable, showAllLevels = TRUE, booktabs = TRUE,include.rownames=F,floating = FALSE)
+@
+}
+\end{varwidth}
+};
+
+
+% Estimands
+\node [rect, fill=white!10, right = 50 of expfact.north east, anchor = north west] (estimands) {\begin{varwidth}{\linewidth}
+\textbf{Estimands:}\\
+\textcolor{white}{\texttt{exp}}\\
+\scalebox{0.9}{
+<< table2_figsim1, results = "asis", echo = FALSE,eval = T,warning=F,message=F>>=
+# library(tidyverse)
+# egp_df <- readRDS("./../../../pilot_simulation/data/list_egp_df.rds")
+# egp_df$variables2 <- egp_df$variables
+# egp_df <- egp_df %>% spread(variables,c(coef)) %>% group_by(rho, n_need, method) %>% mutate("beta_0" = mean(`(Intercept)`,na.rm = TRUE),
+#                                                                                        "beta_1" = mean(x1,na.rm = TRUE),
+#                                                                                        "beta_2" = mean(x2,na.rm = TRUE),
+#                                                                                        "s_y" = mean(sigma,na.rm = TRUE),
+#                                                                                        "y" = mean(y,na.rm = TRUE) )
+#                                                                                        
+# egp_df <- egp_df %>% spread(variables2,c(se)) %>% group_by(rho, n_need, method) %>% mutate("se_0" = mean(`(Intercept)`,na.rm = TRUE),
+#                                                                                      "se_s_y" = mean(sigma,na.rm = TRUE),
+#                                                                                      "se_1" = mean(x1,na.rm = TRUE),
+#                                                                                      "se_2" = mean(x2,na.rm = TRUE),
+#                                                                                      "se_y" = mean(y,na.rm = TRUE)
+#                                                                                      ) %>% distinct()
+# egp_df <- egp_df %>% ungroup() %>%select(-c(`(Intercept)`,sigma, x1, x2,y, se_s_y))%>% distinct()
+# egp_df<- egp_df[!duplicated(cbind(egp_df$rho,egp_df$method) ),]
+# egp_df$wald_0 <- egp_df$beta_0/egp_df$se_0
+# egp_df <- egp_df %>% mutate_if(is.numeric, round, digits = 1)
+# 
+# egp_df <- cbind(select(egp_df, beta_0, se_0,wald_0),"...",select(egp_df,cond_nu) )
+# xTable <- rbind(egp_df[1:2,], rep("...", ncol(egp_df)))
+# xTable <- rbind(xTable, egp_df[(nrow(egp_df)-1):nrow(egp_df),])
+# xTable <- rbind(xTable, rep("...", ncol(egp_df)))
+# xTable <- rbind(xTable, egp_df[nrow(egp_df),])
+# colnames(xTable)  <- c("hbeta_0", "se_0", "t_0","...", "cond_nu")
+# xTable <- xtable(xTable)
+# colnames(xTable)[colnames(xTable)=="\"...\""] <- "..."
+# print(xTable, showAllLevels = TRUE, booktabs = TRUE,include.rownames=F,floating = FALSE)
+
+
+
+demo_df <- readRDS("./../../../simulation/data/demo_df.rds")
+demo_df <- cbind(demo_df[,colnames(demo_df)%in%c("coef", "se", "wald")],
+                 "..." = "...",
+                 demo_df[,colnames(demo_df)%in%c("cond_nu"),drop = F]
+            )
+colnames(demo_df)  <- c("hbeta_0", "se_0", "t_0","...", "cond_nu")
+xTable <- xtable(demo_df)
+print(xTable, showAllLevels = TRUE, booktabs = TRUE,include.rownames=F,floating = FALSE)
+
+
+@
+}
+\end{varwidth}
+};
+
+
+% Estimand-Generating-Process:
+\node [dg, below = 30 of estimands.south east, anchor = north east] (egp) {\begin{varwidth}{\linewidth}
+\textbf{Estimand-Generating-Process:}\\
+\texttt{
+\# paired design\\
+m<-lm(data,y$\sim$x1+x2)\\
+m<-tram::Lm(data,y$\sim$x1+x2)
+    }
+\end{varwidth}
+};
+
+% Simulated Data sets
+\node [rect,fill = white, below = 20 of expfact.south, anchor = north] (sim_data3) {\color{white}\begin{varwidth}{\linewidth}Simulated Data\\
+(n = \Sexpr{n})\\ \texttt{df\_list[[1]]}\end{varwidth}};
+\node [rect,fill = white, below left = 10 and 10 of sim_data3.north , anchor = north] (sim_data2) {\color{white}\begin{varwidth}{\linewidth}Simulated Data\\
+(n = \Sexpr{n})\\ \texttt{df\_list[[1]]}\end{varwidth}};
+\node [rect,fill = white, below left = 10 and 10 of sim_data2.north , anchor = north] (sim_data1) {\begin{varwidth}{\linewidth}Simulated Data\\
+(n = \Sexpr{n})\\ \texttt{df\_list[[1]]}\end{varwidth}};
+
+% Performance Evaluation
+\node [rect,fill = white!20, above = 20 of estimands.north east, anchor = south east] (PE) {\begin{varwidth}{\linewidth}
+\textbf{Performance Evaluation:}\\
+Metrics:
+\begin{itemize}[leftmargin=10pt]
+\item Wald statistics $\boldsymbol{\hat{t}}$
+\item Bias $\boldsymbol{\hat{\beta}-\beta}$
+\item Relative Bias $\left(\boldsymbol{\hat{\beta}-\beta}\right)/\boldsymbol{\beta}$
+\item Empirical standard error $\text{se}\left(\boldsymbol{\hat{\beta}}\right)$
+\item Proportion of $p$-values $\leq\alpha$ (Power)
+\end{itemize}
+Figures:
+\begin{itemize}[leftmargin=10pt]
+\item Trace plots with quantiles
+\item Spatial plots
+\end{itemize}
+\end{varwidth}
+} ;
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Edges
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\path [line] (X_sym |- 0,90) -- (dgp.north-|X_sym.south);
+\path [line] (beta.south) -- +(0,+25) -| (PE.north-|egp);
+\path [line] (dgp.south) -- (dgp|-expfact.north);
+\path [line] (sim_data1|-expfact.south) -- (sim_data1.north);
+\path [line] (sim_data1.east) -- (sim_data1-|egp.west);
+\path [line] (egp.north-|egp) -- (estimands.south-|egp);
+\path [line] (estimands.north-|egp) -- (PE.south-|egp);
+\path [line] (PE.north-|conclusion.south) -| (conclusion.south);
+\path [line] (conclusion.east) -- +(+10,0) |- (aim.east);
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\end{tikzpicture}
+%\end{center}
+% \caption{Simulation workflow regarding the parameter estimation process.}
+% \label{fig:flow_para}
+% \end{figure}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\end{document}

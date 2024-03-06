@@ -1,0 +1,1055 @@
+% LaTeX file for Chapter 05
+<<'preamble05',include=FALSE, cache=FALSE>>=
+library(knitr)
+opts_chunk$set(
+    fig.path='figure/ch05_fig', 
+    self.contained=FALSE,
+    cache = TRUE, # reduced time if TRUE
+    dev = "png" # reduced size!
+    )
+
+# # Creates
+# "../data/boston_parameters.rds"
+# "../data/est_rmv.rds"
+# "../data/est_scalefac.rds"
+# "../data/est_rmv_normal.rds"
+# 
+# # Accesses
+# source("../code/collinearity_sim_comparison.R")
+#
+# est_rmv <- readRDS("../data/est_rmv.rds")
+# est_scalefac <- readRDS("../data/est_scalefac.rds")
+# est_rmv_normal <- readRDS("../data/est_rmv_normal.rds")
+#
+# boston_parameters <- readRDS("../data/boston_parameters.rds")
+# df_to_plot_prop <- readRDS("../data/cross_section_df.rds")
+# df_min_trouble <- readRDS("../data/df_min_trouble.rds")
+@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Simulation study}\label{simstudy}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+<<bostonpara, echo=FALSE>>=
+library(mlbench)
+data("BostonHousing2")
+df_whole <- BostonHousing2[,c("cmedv", "nox", "dis")]
+m_whole <- lm(data = df_whole, cmedv ~ nox + dis)
+m_exp <- lm(data = df_whole, dis ~ nox)
+
+# Parameters inspired by BostonHousing2
+gamma_true <- c("gamma_0" = unname(round(coef(m_exp)[1],1)),
+                "gamma_nox" = unname(round(coef(m_exp)[2],1))
+                )
+mean_x1 <- round(mean(df_whole$nox),1)
+mean_x2 <- round(mean(df_whole$dis),1)
+
+sd_x1 <- round(sd(df_whole$nox),1)
+sd_x2 <- round(sd(df_whole$dis),1)
+
+range_x1 <- round(range(df_whole$nox),1)
+range_x2 <- round(range(df_whole$dis),1)
+
+beta_0 <- c(unname(round(coef(m_whole)[1],1)))
+beta_1 <- c(unname(round(coef(m_whole)[2],1)), 0)
+beta_2 <- c(unname(round(coef(m_whole)[3],1)), 0)
+
+s_y <- c(unname(round(summary(m_whole)$sigma,1)),2,5)
+var_x1 <- (1/12) * diff(range_x1)^2
+exp_x1 <- (1/2) * sum(range_x1)
+
+# no rational for this
+n_explore <- 500
+no_runs <- 100
+no_coll_magnitude <- 50
+
+
+saveRDS(list(
+  "gamma_true" =gamma_true,
+  "range_x1"=range_x1,
+  "range_x2"=range_x2,
+  "beta_0"=beta_0,
+  "beta_1"=beta_1,
+  "beta_2"=beta_2,
+  "s_y"=s_y,
+  "var_x1"=var_x1,
+  "exp_x1"=exp_x1,
+  "n_explore"=n_explore,
+  "no_runs"=no_runs,
+  "no_coll_magnitude"=no_coll_magnitude,
+  "mean_x1"=mean_x1,
+  "mean_x2"=mean_x2,
+  "sd_x1"=sd_x1 ,
+  "sd_x2"=sd_x2 
+  ),
+  file = "../data/boston_parameters.rds")
+@
+
+
+The \texttt{BostonHousing2} data set introduced in Chapter~\ref{chap:boston_intro} showed in Tables~\ref{tab:vardecomp} and \ref{tab:vardecomp_tram} two different collinearity constellations coming from two different models. Thus, we don't know what collinearity itself does to the results provided in Tables~\ref{tab:reg_bo} and \ref{tab:reg_tram}. We also have in general no control over the results that both methods yield since we do not really have an idea what the true coefficients $\bbeta$ are. Thus, we create a simulation study inspired by the \texttt{BostonHousing2} untransformed data set where we have full control over the collinearity situation and about the true coefficients. A simulation study is a computer based experiment where we create pseudo-random \textit{Simulated Data} where the underlying parameters are known. Such studies allow to understand the statistical properties and behaviors of methods under considerations because comparison to the \textit{Truth} is possible. 
+
+\cite{Harrison1978} do not specifically reason the transformations of variables apart from \texttt{nox\textasciicircum 2} which is found via grid search. Despite the use of the rather complex model with many variables and even transformations of some, we will investigate the behavior of \texttt{lm} and \texttt{tram::Lm} due to collinearity in a simpler setup with only two explanatory variables involved and also with the data set loaded by executing the command \texttt{data("BostonHousing2")} from the \texttt{mlbench} package. This, because also seemingly simple systems can be already suspect to the detrimental effects of collinearity.
+
+We followed recommendations by \cite{Burton2006, Morris2019} and \cite{pawel2022} and developed two simulation workflows summarized in Figures~\ref{fig:sim_para} and \ref{fig:sim_design}. Whereas the workflow in Figure~\ref{fig:sim_para} focuses on the parameter estimation process, Figure~\ref{fig:sim_design} addresses the design of the experiment. More specifically, it addresses the sample size that is needed to mitigate the effect of collinearity. Sections~\ref{sec:sim_aim}--\ref{sec:sim_exceptions} justify the workflows and the results are provided in Chapter~\ref{results}.
+
+\newpage
+\begin{figure}[H]
+\begin{center}
+\hspace*{-1cm}
+\includegraphics[width=1.2\textwidth]{../sim_workflow_tikz/flow_para}
+\vspace*{-50mm}
+\caption{Simulation workflow for the parameter estimation process comparing the least squares model \texttt{lm} with the transformation model equivalent \texttt{tram::Lm} with respect to collinearity susceptibility.}
+\label{fig:sim_para}
+\end{center}
+\end{figure}
+
+
+\newpage
+\begin{figure}[H]
+\begin{center}
+\vspace*{-1cm}
+\hspace*{-1cm}
+\includegraphics[width=1.2\textwidth]{../sim_workflow_tikz/flow_design}
+\vspace*{-30mm}
+\caption{Simulation workflow for the design correction through an appropriate sample size that can alleviate the harm caused by collinearity. So far, this procedure only applies for the \texttt{lm} model.}
+\label{fig:sim_design}
+\end{center}
+\end{figure}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Aim}\label{sec:sim_aim}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+The aim for this particular simulation study is: We want to compare the conventional least-squares model \texttt{lm} with the transformation model equivalent \texttt{tram::Lm} under different collinearity magnitude in the design matrix $\X$. The experimental factors that  change in this simulation are:
+\begin{itemize}
+\item Magnitude of collinearity (\texttt{rho})
+\item Number of observations (\texttt{n\_obs})
+\item Magnitude of noise (\texttt{s\_y})
+\item Effect and no effect (\texttt{beta\_0, beta\_1, beta\_2})
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Data generating process}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Since this simulation study is inspired by the \texttt{BostonHousing2} data set, we also borrow our parameters for the data generation process from it. We start with generating the collinear design matrix $\boldsymbol{X}\in \R^{\texttt{n\_obs}\times p}$ where $p$ is 3 and \texttt{n\_obs} will be determined later. 
+
+% %%%%%%%%%%%%%%
+\subsection{How to generate $\boldsymbol{X}$ with controlled collinearity?}
+% %%%%%%%%%%%%%%
+
+In the linear regression setup, we do not make any assumption about the explanatory variables, except that they are measured without error. Thus, we can choose a distribution of our own liking. Of more importance is the magnitude of collinearity within $\X$.
+To control collinearity, we considered three options: \textit{scaling factor} (\texttt{scalefactor}) and \textit{multivariate normal method} with transformation to uniform distribution (\texttt{rmvuni}) and without transformation to different distribution (\texttt{rmvnorm}). We follow the approach where we stick with the multivariate normal distribution, but state now all three options for completeness.
+
+%%%%
+\subsubsection{Scaling factor (\texttt{scalefactor})}\label{section:scaling}
+%%%%
+
+This method is similar to the used approach in \cite{Belsley1991}[Chapter~4], and the idea here is that we start with generating one explanatory variable $\x_1$ as we want and then generate a second explanatory variable $\x_2$ based on $\x_1$ via a linear transformation. The magnitude of collinearity, more specifically correlation, is determined by adding some noise $\bvarepsilon_x$ to $\x_1$. The amount of noise added can be determined by multiplying $\bvarepsilon_x$ with the scaling factor $s_x$. A lot of noise will lead to $\x_1$ and $\x_2$ having less correlation. On the other hand, almost no noise will lead to the fact that $\x_2$ can almost perfectly be described by linear transformations of $\x_1$ and thus leads to high correlation. 
+
+Therefore, we draw \texttt{n\_obs} samples from a uniform distribution whose borders are inspired by the range of \texttt{nox} from the \texttt{BostonHousing2} data set. Thus,
+\begin{align}
+\x_1\sim \U_{\texttt{n\_obs}}(\Sexpr{range_x1})\label{eq:x_nox}
+\end{align}
+The second explanatory variable $\x_2$ is generated from $\x_1$ as
+\begin{align}
+\x_2=\gamma_0 + \gamma_1\cdot \x_1 + \bvarepsilon_x\cdot s_x\label{eq:x_dis}
+\end{align}
+where $\gamma_0$ and $\gamma_1$ are here leaned on the coefficients obtained by fitting the model \texttt{lm(data = BostonHousing2, dis$\sim$nox)} (Table~\ref{tab:bost_exp}). $\bvarepsilon_x$ is an \texttt{n\_obs}-dimensional vector containing independent and identical draws of the standard normal distribution $\N(0,1)$ and $s_x$ is the scaling factor that allows us to control the magnitude of collinearity. 
+
+\begin{table}[h]
+\begin{center}
+\caption{Analyzing (weighted) distance of Housings to five employment centers (\texttt{dis}) with simple linear regression via the \texttt{lm} function for the \textit{whole} data set ($n$=\Sexpr{nrow(model.matrix(m_whole))}). Outcome variable is the weighted distances to five Boston employment centers (\texttt{dis}). Explanatory variable \texttt{nox} is continuous.}
+\label{tab:bost_exp}
+<<boston_exp_log, results = "asis",echo=FALSE >>=
+# printing results
+library(biostatUZH);library(xtable)
+tableRegression(m_exp, stats = c("estimate", "ci.95","t.value", "p.value"),
+                col.nam = c("$\\hat\\gamma$", "95\\% confidence interval",
+                            "$t$-value", "$p$-value"),
+                row.names = c("Intercept","nox"),
+
+                floating = FALSE)
+@
+\end{center}
+\end{table}
+
+%%%%
+\subsubsection{Multivariate normal and transformation to uniform (\texttt{rmvuni})}\label{section:mvt}
+%%%%
+The second method employs drawing \texttt{n\_obs} samples from a standard multivariate normal distribution with the variance-covariance matrix $\boldsymbol{\Sigma}$ being equivalent to the correlation matrix $\boldsymbol{C}$
+\begin{align}
+\begin{pmatrix}
+  Z_{11} & Z_{12} \\
+  \vdots & \vdots \\
+  Z_{\texttt{n\_obs}1} & Z_{\texttt{n\_obs}2}
+\end{pmatrix}
+\sim
+\N\left(\boldsymbol{\mu} = \begin{pmatrix}
+  0  \\ 0
+\end{pmatrix},
+\boldsymbol{\Sigma} = \begin{pmatrix}
+  1 & \rho_{12} \\
+  \rho_{21} & 1
+\end{pmatrix}\right)
+\label{eq:rmv}
+\end{align}
+where $\rho_{12}=\rho_{21}$ is the correlation coefficient between realizations $\boldsymbol{z}_1$ and $\boldsymbol{z}_2$ defined between -1 and 1 (and has thus natural bounds, which is good for us with respect to parameter definition for the simulation). Starting from $\boldsymbol{z}_1$ and $\boldsymbol{z}_2$, which are currently standard normal distributed with a certain collinearity, we can generate the distribution we want, by, in a first step, transforming them to be standard uniform distributed using the inverse transformation. If $z_{ij}$ is a realization of a random variable $Z_{ij}$ with cumulative distribution function $F_{Z_{ij}}(z_{ij})$, we can rearrange to 
+\begin{align*}
+F_{Z_{ij}}(z_{ij})&=\bfP\left(Z_{ij}\leq z_{ij}\right)=\bfP\left(T(U)\leq z_{ij}\right)=\bfP\left(U \leq T^{-1}(z_{ij})\right)
+\end{align*}
+and when $U$ is standard uniform it holds that $\bfP(U\leq u)=u$ and thus
+\begin{align*}
+F_{Z_{ij}}(z_{ij})&=T^{-1}(z_{ij})\sim \U(0,1)
+\end{align*}
+where $F_{Z_{ij}}(z_{ij})$ is in our case $\Phi(z_{ij})$. Thus, $\Phi\left(\boldsymbol{z}_1\right)$ and $\Phi\left(\boldsymbol{z}_2\right)$ are now both standard uniform with a certain correlation and can be further transformed. In our case, we change the support $a_1$ and $b_1$ by
+\begin{align*}
+\boldsymbol{x}_1 = \Phi\left(\boldsymbol{z}_1\right)\cdot (b_1-a_1) + a_1
+\end{align*}
+where now $\boldsymbol{x}_1\sim \U_{\texttt{n\_obs}}(a_1=\Sexpr{range_x1[1]},b_1 = \Sexpr{range_x1[2]})$ and the support is leaned on the \texttt{BostonHousing2} data set. The same procedure is also applied to generate the second explanatory variable $\boldsymbol{x}_2$ $(a_2=\Sexpr{range_x2[1]},b_2 = \Sexpr{range_x2[2]})$. Using the uniform distribution has the advantage that we can strictly define the range of our explanatory variables. The disadvantage is that it is not very natural with observations sticking very densely to the corners (Figure~\ref{fig:sim_comp_data}) which might influence the analysis.
+
+%%%%
+\subsubsection{Multivariate normal (\texttt{rmvnorm})}\label{section:mvt_stay}
+%%%%
+The third case that we inspect is if we keep the standard normal distribution, but we shift and scale the data to have the same marginal mean $\mu_{\boldsymbol{x}_1}$ and standard deviation $\sigma_{\boldsymbol{x}_1}$ as the \texttt{BostonHousing2} data set.
+Thus, we draw observations described by Equation~\eqref{eq:rmv} and transform them as
+\begin{align*}
+\boldsymbol{x}_j = \boldsymbol{z}_j\cdot \sigma_{\boldsymbol{x}_j} + \mu_{\boldsymbol{x}_j}
+\end{align*}
+
+%%%%
+\subsubsection{Collinearity over the correlation matrix}\label{sec:collovercorr}
+%%%%
+Of course, $\boldsymbol{C}$ describes directly the correlation, which is not exactly collinearity but rather a special case thereof. Furthermore, we invest collinearity on the design matrix $\X$ which includes a constant column of ones ($\boldsymbol{x}_0$) as this can also contribute to collinearity. Nevertheless, there is no angle for us to manipulate on $\boldsymbol{x}_0$ as this is clearly given, which leaves us with $\boldsymbol{x}_1$ and $\boldsymbol{x}_2$ to steer the \textit{whole} amount of collinearity in $\boldsymbol{X}$ and thus operating on $\boldsymbol{C}$ seems to be valid.
+
+Extension of this method to design matrices of higher dimension $p>3$ are of course also possible. As described earlier in Section~\ref{sec:transformX}, when we \textit{standardize} the design matrix and take the square of it, we end up with the correlation matrix $\boldsymbol{C}$ which lacks the constant column.
+\begin{align}
+\boldsymbol{W^\top W}=\boldsymbol{C}=
+\begin{pmatrix}
+  1 & \rho_{12} & \ldots & \rho_{1p}\\
+  \rho_{21} & 1 & \ldots & \rho_{2p} \\
+  \vdots & \vdots & \ddots & \vdots \\
+  \rho_{p1} & \rho_{p2} & \ldots & 1\\
+\end{pmatrix}\label{eq:corrmat}
+\end{align}
+Although all individual parameters describe only the \textit{pairwise correlation}, the degree of \textit{collinearity} within $\boldsymbol{W}$ can be determined, as the eigenvalue decomposition works on this scale and the results of the singular value decomposition can approximate these results.
+However, the later transformation to the distribution of choice and the addition of the constant column to end up at the design matrix $\X$, will not surprisingly yield a different condition number.
+Nevertheless, the transformation and the constant column are independent of the collinearity magnitude which means that the correlation coefficients, $\frac{(p-1)p}{2}$ in number, are still the only parameters that determine the level of \textit{collinearity} within $\X$.
+
+\begin{figure}[H]%H is strict!
+\begin{center}
+<<cortocl, fig.height = 5, fig.width = 8,echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE>>=
+sit_rho <- 40+1
+rho <- as.matrix(expand.grid("rho_12" = seq(from = -1, to = 1, length.out = sit_rho),
+            "rho_13" = seq(from = -1, to = 1, length.out = sit_rho),
+            "rho_23" = seq(from = -1, to = 1, length.out = 11)[-c(1,11)]
+            ))
+properties <- matrix(NA, nrow = nrow(rho),ncol = 4)
+for(i in 1:nrow(properties)){
+  R <- matrix(1, nrow = ncol(rho), ncol = ncol(rho))
+  R[1,2] <- R[2,1] <- rho[i,1]
+  R[1,3] <- R[3,1] <- rho[i,2]
+  R[3,2] <- R[2,3] <- rho[i,3]
+  properties[i,] <- c(NA,rho[i,])
+  tryCatch({
+  properties[i,1] <- sqrt(max(eigen(R)$values)/min(eigen(R)$values))
+   },error = function(e){properties[i,1] <<- NA}
+   )
+}
+properties <- data.frame(properties)
+colnames(properties) <- c("cond_nu", "rho_12", "rho_13", "rho_23")
+
+library(ggplot2);library(RColorBrewer)
+properties$cond_nu <- ifelse(properties$cond_nu>1000, 1000, properties$cond_nu)
+properties$cond_nu <- ifelse(is.na(properties$cond_nu), 1000, properties$cond_nu)
+
+breaks1<-c(2,4,6,30,100,1000)
+MoranColours<- rev(brewer.pal(length(breaks1)-1, "RdGy"))
+properties$rho_23 <- factor(paste0("rho[23]==",properties$rho_23),
+                            levels = paste0("rho[23]==", seq(from = -0.8,to = 0.8,by = 0.2)))
+
+ggplot(data = properties, aes(x=rho_12, y=rho_13, fill = cond_nu,z = cond_nu)) +
+  geom_raster()+
+  geom_contour(breaks = breaks1,lty = 2,col = "black")+
+  binned_scale(aesthetics = "fill", scale_name = "custom", name = "Condition Number",
+               palette = ggplot2:::binned_pal(scales::manual_pal(values = MoranColours)),
+               guide = "colorsteps",
+               breaks = breaks1,show.limits = T,
+              limits = c("0" = 0, ">100" = 100)
+               )+
+  facet_wrap(~rho_23, labeller = label_parsed)+
+  theme_classic()+
+  labs(x = bquote(rho[12]), 
+       y = bquote(rho[13]), 
+       title = "Pairwise Correlation to Collinearity")
+
+
+@
+\end{center}
+\vspace{-1cm}
+\caption{Visualization how different correlation coefficients impact collinearity, which is described by the condition number. The condition number is approximated via the eigenvalue decomposition of the correlation matrix $\boldsymbol{C}=\boldsymbol{W^\top W}$ for the 3-dimensional case. For an easier visualization, the condition number is split into 5 bins, where the bin in red represents condition numbers higher then 30.}
+\label{fig:cortocol}
+\end{figure}
+
+Figure~\ref{fig:cortocol} illustrates for the 3-dimensional case how different constellations of $\rho_{12},\rho_{13}$ and $\rho_{23}$ lead to a rank-deficient, or almost rank-deficient, matrix $\boldsymbol{C}$ expressed by high condition numbers. This figure should emphasize that it is possible to get high collinearity while still having rather low correlation coefficients.
+
+% %%%%%%%%%%%%%%
+\subsection{The outcome?}
+% %%%%%%%%%%%%%%
+
+When $\X$ is set, we can tackle the outcome variable $\y$. With a column of a ones, our design matrix $\X$ takes the form
+\begin{align}
+\boldsymbol{X}=
+\begin{pmatrix}
+  1 & x_{11} & x_{12} \\
+  \vdots & \vdots & \vdots \\
+  1 & \x_{\texttt{n\_obs}1} & x_{\texttt{n\_obs}2} \\
+\end{pmatrix}\in\R^{\texttt{n\_obs}\times 3}\label{eq:desma}
+\end{align}
+
+and the outcome $\y$ is then generated as
+\begin{align*}
+\y=\X\cdot \left(\beta_0,\beta_1,\beta_2\right)^\top
++ \boldsymbol{\varepsilon}_y\cdot s_y
+\end{align*}
+where $\beta_0, \beta_1$ and $\beta_2$ are inspired by coefficients obtained by fitting the model \\\texttt{lm(data=BostonHousing2, cmedv$\sim$dis+nox)}(Table~\ref{tab:bost_log}). In addition, $\beta_1$ and $\beta_2$ will both have a second experimental condition specified as zero. $\boldsymbol{\varepsilon}_y$ is an \texttt{n\_obs} dimensional vector containing independent and identical draws of the standard normal distribution $\N(0,1)$ and $s_y$ is also a parameter that is inspired by the same fitted model, where it serves as the residual standard error. $s_y$ will also have two additionally different realizations to explore more experimental conditions.
+
+\begin{table}[H]
+\begin{center}
+\caption{Analyzing Boston Housing prices with multiple linear regression via the \texttt{lm} function for the \textit{whole} data set ($n$=\Sexpr{nrow(model.matrix(m_whole))}). Outcome variable is the (corrected) median value of the owner occupied homes in USD 1000 (\texttt{cmedv}). Explanatory variables \texttt{nox} and \texttt{dis} are both continuous.}\label{tab:bost_log}
+<<boston_model_log, results = "asis",echo=FALSE >>=
+# printing results
+library(biostatUZH);library(xtable)
+tableRegression(m_whole, stats = c("estimate", "ci.95","t.value", "p.value"),
+                col.nam = c("$\\hat\\beta$", "95\\% confidence interval",
+                            "$t$-value", "$p$-value"),booktabs = TRUE,
+                floating = FALSE)
+@
+\end{center}
+\end{table}
+
+Thus according to Table~\ref{tab:bost_log}, after having specified $\X$, the following parameters are set to create the outcome $\y$:
+\begin{multicols}{2}
+\begin{itemize}
+\item $\beta_0$ ($\beta_\texttt{Intercept}$) set as \texttt{c(\Sexpr{beta_0})}
+\item $\beta_1$ ($\beta_\texttt{nox}$) set as \texttt{c(\Sexpr{beta_1})}
+\item $\beta_2$ ($\beta_\texttt{dis}$) set as \texttt{c(\Sexpr{beta_2})}
+\item $s_y$ set as \texttt{c(\Sexpr{sort(s_y)})})
+\end{itemize}
+\end{multicols}
+
+where all these parameter are rounded on one decimal place.
+
+%%%%
+\newpage
+\subsection{Comparison of methods}
+%%%%
+
+We create \Sexpr{no_coll_magnitude} collinearity situations of different magnitude and for each of these situations we create \Sexpr{no_runs} data sets consisting of \Sexpr{n_explore} observations. There is not really a rationale for these parameters, but should only visualize the different data properties each method is accompanied by. Although $\beta_1, \beta_2$ and $s_y$ have several conditions, all of them take in this example the realization that is inherited from the \texttt{BostonHousing2} data set: $\beta_1=\Sexpr{beta_1[1]}$, $\beta_2=\Sexpr{beta_2[1]}$, $s_y=\Sexpr{s_y[1]}$.
+
+The individual data frames are generated as described earlier in this section. $\rho$ is iterated on an equally spaced grid between 0 and -1. The negative correlation is chosen because as visible in Table~\ref{tab:bost_exp} the association between variable $\x_1$ (\texttt{nox}) and $\x_2$ (\texttt{dis}) is negative ($\gamma_\texttt{nox}$=\Sexpr{gamma_true[2]}).
+
+For the \texttt{scalefactor} method, the grid for $s_x$ is determined by computing the scale factors that are needed to achieve the same minimum and maximum condition number, the \texttt{rmvuni} method could achieve. These borders are determined by a uniroot function and $s_x$ is iterated between these two borders with an equal spacing.
+
+Furthermore, the outcome variable $\y$ is also generated and subsequently the least-squares linear model \texttt{lm(y$\sim$x1+x2)} is fitted to figure out whether the different simulation methods also end up with different results. The transformation model equivalent is not yet applied, as we are currently only comparing the data generation process.
+
+Figure~\ref{fig:sim_comp} plots on the first two rows the diagonal entries of $\left(\boldsymbol{E^\top E}\right)^{-1}$ versus the correlation coefficient $\rho$, the condition number $\kappa\left(\boldsymbol{E}\right)$ respectively. The third row visualizes the correlation coefficient versus the condition number, and it seems to be the case that for the same condition number, the correlation is highest in the \texttt{rmvnorm} method. This effect seems to be more pronounced for lower condition numbers.
+
+The fourth row plots the standard deviation of the explanatory variables.
+This row crystallizes the difference when simulating with the \texttt{scalefactor} or drawing from the multivariate normal (\texttt{rmvnorm} or \texttt{rmvuni}): Variable $\x_2$ (\texttt{dis}) that is constructed from $\x_1$ (\texttt{nox}) has a non-constant standard deviation, as this is the parameter that defines the collinearity within $\X$.
+The standard deviation for $\x_1$ in the \texttt{scalefactor} method stays horizontally the same, as the collinearity magnitude is only defined by $s_x$ but works with the same random pattern. This means that there are only \Sexpr{no_runs} different random patterns, and each of them is \Sexpr{no_coll_magnitude} times scaled to get different collinearity situations. Thus, the \texttt{scalefactor} method yields dependent data sets, whereas for \texttt{rmvnorm} and \texttt{rmvuni}, all generated data sets are independent of each other.
+
+The three last rows show the estimated coefficients $\hbbeta[i,j]$, the standard error $\se\left(\hbbeta[i,j]\right)$ and the Wald-Statistics $\hbt[i,j]$ for all created data sets. It seems to be the case that the non-constant standard deviation for $\boldsymbol{x}_2$ that accompanies the \texttt{scalefactor} method, has an effect on all three statistics.
+Thus, all three methods will cause different estimation behavior, but whether one of them is better or worse is not clear.
+
+<<comp_sim, echo=FALSE,warning=F, message=F>>=
+# Small simulation to compare methods
+library(tidyverse)
+source("../code/collinearity_sim_comparison.R") #uncomment to save time
+est_rmv <- readRDS("../data/est_rmv.rds")
+est_rmv$method <- "rmv"
+est_scalefac <- readRDS("../data/est_scalefac.rds")
+est_scalefac$method <- "scale"
+est_rmv_normal <- readRDS("../data/est_rmv_normal.rds")
+est_rmv_normal$method <- "rmvnormal"
+
+# combine plots
+df_comp <- rbind(est_rmv, est_scalefac,est_rmv_normal)
+rm(est_rmv, est_scalefac,est_rmv_normal)
+
+#change from wide to long
+df_comp <- df_comp %>% gather(key = "variable", value = "value", -c(cond_nu,rho, fix, run, method)) %>%
+  tidyr::extract(variable, c("trouble", "variable"),"([[:alnum:]]+).([[:alnum:]]+)" ) %>% 
+  tidyr::spread(key = trouble, value = value)
+df_comp$variable  <- factor(df_comp$variable, levels = c("const", "x1", "x2"))
+df_comp$run  <- as.factor(df_comp$run )
+df_comp$method  <- as.factor(df_comp$method )
+@
+
+\newpage
+
+\begin{figure}[H]%H is strict!
+\begin{center}
+<<sim_comp, fig.height = 15, fig.width = 10,echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE>>=
+library(ggplot2); library(gridExtra);library(ggpubr)
+
+#plotting
+p_cn <- ggplot(data = df_comp, 
+             aes(x = cond_nu, y = trouble,group = run,col = method))+
+  geom_point(alpha = 0.9,pch=".")+
+  facet_wrap(.~variable,scales = "free", ncol = 3) +
+  labs(y="Diagonal Entry", x ="Condition Number",
+       title = "Diagonal entry vs Condition Number")+
+  theme_classic()+
+  scale_colour_manual(name = "Method",
+                      labels = c("rmvuni", "rmvnorm", "scalefactor"),
+                      values = c("#F8766D","#7CAE00","#00BFC4"))+
+  guides(colour = guide_legend(override.aes = list(shape = 19)))
+
+p_rho <- ggplot(data = df_comp, 
+             aes(x = rho, y = trouble,group = run,col = method))+
+  geom_point(alpha = 0.9,pch=".")+
+  facet_wrap(.~variable,scales = "free", ncol = 3) +
+  labs(y="Diagonal Entry", x = expression(rho),
+       title = "Diagonal entry vs Correlation Coefficient")+
+  theme_classic()+
+  scale_colour_manual(name = "Method",
+                      labels = c("rmvuni", "rmvnorm", "scalefactor"),
+                      values = c("#F8766D","#7CAE00","#00BFC4"))+
+  guides(colour = guide_legend(override.aes = list(shape = 19)))
+
+p_sd <- ggplot(data = df_comp, 
+             aes(x = cond_nu, y = sd,group = run,col = method))+
+  geom_point(alpha = 0.9,pch=".")+
+  facet_wrap(.~variable,scales = "free", ncol = 3) +
+  labs(title="Standard deviation", x = "Condition Number",y = "Standard deviation")+
+  theme_classic()+
+  scale_colour_manual(name = "Method",
+                      labels = c("rmvuni", "rmvnorm", "scalefactor"),
+                      values = c("#F8766D","#7CAE00","#00BFC4"))+
+  guides(colour = guide_legend(override.aes = list(shape = 19)))
+
+p_cc <- ggplot(data = df_comp, 
+             aes(x = cond_nu, y = rho,group = run,col = method))+
+  geom_point(alpha = 0.9,pch=".")+
+  facet_wrap(.~variable,scales = "free", ncol = 3) +
+  labs(y=expression(rho), x ="Condition Number",
+       title = " Correlation Coefficient vs Condition Number")+
+  theme_classic()+
+  scale_colour_manual(name = "Method",
+                      labels = c("rmvuni", "rmvnorm", "scalefactor"),
+                      values = c("#F8766D","#7CAE00","#00BFC4"))+
+  guides(colour = guide_legend(override.aes = list(shape = 19)))
+
+p_beta <- ggplot(data = df_comp, 
+             aes(x = cond_nu, y = beta,group = run,col = method))+
+  geom_point(alpha = 0.9,pch=".")+
+  facet_wrap(.~variable,scales = "free", ncol = 3) +
+  labs(y="Coefficient", x ="Condition Number",
+       title = "Coefficient vs Condition Number")+
+  theme_classic()+
+  scale_colour_manual(name = "Method",
+                      labels = c("rmvuni", "rmvnorm", "scalefactor"),
+                      values = c("#F8766D","#7CAE00","#00BFC4"))+
+  guides(colour = guide_legend(override.aes = list(shape = 19)))
+
+p_se <- ggplot(data = df_comp, 
+             aes(x = cond_nu, y = se,group = run,col = method))+
+  geom_point(alpha = 0.9,pch=".")+
+  facet_wrap(.~variable,scales = "free", ncol = 3) +
+  labs(y="Standard error", x ="Condition Number",
+       title = "Standard error vs Condition Number")+
+  theme_classic()+
+  scale_colour_manual(name = "Method", 
+                      labels = c("rmvuni", "rmvnorm", "scalefactor"),
+                      values = c("#F8766D","#7CAE00","#00BFC4"))+
+  guides(colour = guide_legend(override.aes = list(shape = 19)))
+
+p_wald <- ggplot(data = df_comp, 
+             aes(x = cond_nu, y = beta/se,group = run,col = method))+
+  geom_point(alpha = 0.9,pch=".")+
+  facet_wrap(.~variable,scales = "free", ncol = 3) +
+  labs(y="Wald-Statistics", x ="Condition Number",
+       title = "Wald-Statistics vs Condition Number")+
+  theme_classic()+
+  scale_colour_manual(name = "Method",
+                      labels = c("rmvuni", "rmvnorm", "scalefactor"),
+                      values = c("#F8766D","#7CAE00","#00BFC4"))+
+  guides(colour = guide_legend(override.aes = list(shape = 19)))
+
+#plotting all together
+p_tot <- ggarrange(p_rho,p_cn,p_cc,p_sd,p_beta, p_se, p_wald,
+                   ncol=1, nrow=7,
+                   common.legend = TRUE, legend="bottom",align = "v")
+p_tot
+
+@
+\end{center}
+\vspace{-1cm}
+\caption{Comparing \texttt{rmvuni, rmvnorm} and \texttt{scalefactor} approaches to induce collinearity.}
+\label{fig:sim_comp}
+\end{figure}
+
+\newpage
+
+Figure~\ref{fig:sim_comp_data} compares how the \textit{raw} data for two different collinearity magnitudes differs between the simulation approaches. We see here even clearer that the \texttt{scalefactor} method (blue) does not protect the marginal standard deviation of $\x_2$ (\texttt{dis}) whereas the multivariate normal method does. In addition, we see that for \texttt{rmvuni}, the borders are respected but we see that the observations are preferably scattered at the upper-left and lower-left corner which seems not very natural.
+
+\begin{figure}[H]%H is strict!
+\begin{center}
+<<sim_comp_data, fig.height = 9.2, fig.width = 8,echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE>>=
+library(ggplot2); library(gridExtra);library(ggpubr);library(stringr)
+library(Collinearity);library(mlbench);data("BostonHousing2")
+
+# load data
+df_to_plot_prop <- readRDS("../data/cross_section_df.rds")
+df_to_plot <- df_to_plot_prop$df
+df_to_plot$col <- do.call("rbind", str_split(df_to_plot$method, "_"))[,1]
+df_to_plot_prop <- data.frame(df_to_plot_prop$prop)
+df_to_plot_prop$rho <- as.numeric(df_to_plot_prop$rho)
+df_to_plot_prop$cond_nu <- as.numeric(df_to_plot_prop$cond_nu)
+df_to_plot_prop$label <- paste0(
+  "Condition Number = ",round(df_to_plot_prop$cond_nu,2),
+  " \n ",
+  "Rho= ",round(df_to_plot_prop$rho,2))
+
+# plotting
+labeller <- c("rmv_100"="Higher coll. + rmvuni", "scale_100"="Higher coll. + scalefactor",
+              "rmv_20"="Lower coll. + rmvuni", "scale_20"="Lower coll. + scalefactor",
+              "rmvnormal_20"="Lower coll. + rmvnorm", 
+              "rmvnormal_100"="Higher coll. + rmvnorm",
+              "Original"="Original Data"
+              )
+
+# adding original data frame
+df_original <- dplyr::select(BostonHousing2, c("nox", "dis"))
+colnames(df_original) <- c("x1", "x2")
+df_original$method <- "Original"
+df_original$col <- "Original"
+df_to_plot <- dplyr::bind_rows(df_to_plot, df_original )
+row.names(df_to_plot) <- NULL
+df_to_plot$method <- factor(df_to_plot$method,
+                            levels = c("scale_20", "scale_100",
+                                        "rmv_20", "rmv_100",
+                                        "rmvnormal_20", "rmvnormal_100",
+                                        "Original")  )
+# properties
+df_original$cond_nu <- max(Collinearity::Var_decom_mat.matrix(
+  as.matrix(
+    cbind("cons"=1,"x1"=df_original$x1, "x2"=df_original$x2 )
+    ))[,"cond_ind"])
+df_original$rho <- cor(df_original$x1, df_original$x2)
+df_original$label <- paste0("Condition Number = ", round(df_original$cond_nu,3) ,
+                            " \n Rho = ", round(df_original$rho,3))
+df_to_plot_prop <- dplyr::bind_rows(df_to_plot_prop,
+                                dplyr::select(df_original,c("method", "label") ))
+df_to_plot_prop$method <- factor(df_to_plot_prop$method,
+                                 levels = c("scale_20", "scale_100",
+                                            "rmv_20", "rmv_100",
+                                            "rmvnormal_20", "rmvnormal_100",
+                                            "Original") )
+#plotting
+ggplot(data = df_to_plot, aes(x=x1, y = x2,col = col))+
+  geom_point(show.legend = F,alpha = 0.5)+
+  geom_label(data =df_to_plot_prop, aes(x=-Inf, y = -Inf, label = label),
+             col = "black",vjust = 0,hjust = 0 ,show.legend = F, label.size = NA)+
+  facet_wrap(~method, labeller = labeller(method = labeller), ncol = 2,as.table = F) +
+  geom_hline(yintercept = range_x2,lty = 2)+
+  geom_vline(xintercept = range_x1,lty = 2)+
+  geom_point(x = mean_x1,y = mean_x2,col = "black")+
+   labs(y = bquote(bold(x)[2]), x = bquote(bold(x)[1]),
+       title = "Data sets generated with different methods")+
+  scale_colour_manual(name = "Method", 
+                      values = c("#CCCCCC","#F8766D","#7CAE00","#00BFC4"))+
+  theme_classic()
+@
+\end{center}
+\vspace{-1.2cm}
+\caption{Comparing approaches to induce collinearity. Visualization how the two variables $\boldsymbol{x}_1$ and $\boldsymbol{x}_2$ are in relation to each other for the different methods but for somewhat similar collinearity magnitudes. The black dot and the dotted lines represents the location of the mean and range of the two explanatory variables coming from the \texttt{BostonHousing2} data set.}
+\label{fig:sim_comp_data}
+\end{figure}
+
+To summarize a few points to compare the methods:
+\begin{enumerate}
+\item \textit{Dependency}: Whereas the \texttt{scalefactor} method may have dependent data sets, and thus also dependent estimates, \texttt{rmvuni} and \texttt{rmvnorm} break this association.
+\item \textit{Marginal standard deviation}: The \texttt{scalefactor} method results in different standard deviations for $\boldsymbol{x}_2$ depending on the collinearity magnitude. The \texttt{rmvuni} and \texttt{rmvnorm} methods protect the marginal standard deviation of the created variables.
+\item \textit{Range}: In the \texttt{rmvuni} and \texttt{rmvnorm} methods we induce collinearity over the correlation matrix $\boldsymbol{C}$ whose coefficients are naturally bounded by $\left(-1,1\right)$. Determining the boundaries for the \texttt{scalefactor} method is less restrictive and setting reasonable limits is a task that might cause serious headache.
+\end{enumerate}
+
+Simulation of controlled collinearity for the case when more than two explanatory variables need definition might be more intuitive with the \texttt{scalefactor} method, as one variable can be rather clearly defined by a linear transformation of others.
+On the other hand, with this approach one is rather bounded to the case one is imagining and moves a bit away from the more general application.
+The dependency is lost when simulating over the \texttt{rmvuni} or \texttt{rmvnorm} method. But this is not necessarily a bad thing, as this simplifies later analysis by not having to correct for dependent estimates.
+Of course, breaking the dependency is also possible for the \texttt{scalefactor} method. Nevertheless, with respect to simulation, a clear defined range seems to be very convenient and also a constant marginal standard deviation of the explanatory variables is desirable as this might lead to unexpected effects.
+Unexpected effects might be also caused by the transformation to uniform scale (\texttt{rmvuni}), as the points prefer to stick in the corners.
+
+In the end, we conclude that there is not really one optimal method to induce collinearity.
+The method we choose to go along with is the \texttt{rmvnorm} method.
+With this method, we do not restrict $\X$ to be within the range of the \texttt{BostonHousing} data set, but we don't see this as problematic.
+This method seems for us the most convenient and natural method to simulate collinear explanatory variables, and therefore we move along with it.
+
+% %%%%%%%%%%%%%%
+\subsection{Sample size \texttt{n\_obs} for continuous variable of interest}
+% %%%%%%%%%%%%%%
+
+\texttt{n\_obs} is chosen to be able to find the effect corresponding to variable $\x_1$ (=\texttt{nox}) with a power of 80\% and significance level of $\alpha=$0.05 when \textit{no} collinearity is assumed. Even though we change the magnitude of collinearity within the simulation, \texttt{n\_obs} stays constant throughout the whole simulation to point out the effect solely caused by collinearity. To determine the sample size \texttt{n\_obs} we employ the function \texttt{Collinearity::copowerlm} with the parameters defined earlier employed at the noisiest condition specified at the maximum \texttt{s\_y} value as:
+\begin{multicols}{2}
+\begin{itemize}
+\item \texttt{power}=0.80
+\item \texttt{n}=NULL
+\item \texttt{alpha}=0.05
+\item \texttt{Delta}=$\beta_1$=\Sexpr{beta_1[1]}
+\item \texttt{sigma}=$s_y$=\Sexpr{s_y[1]}
+\item \texttt{p}=3
+\item \texttt{voilen}=$\var(X_1)+\E(X_1)^2$=\Sexpr{round(var_x1 + exp_x1^2,3)}
+\item \texttt{trouble}=\dots
+\end{itemize}
+\end{multicols}
+where a crucial parameter is \texttt{trouble} is yet missing. \texttt{trouble} is still the diagonal entry of $\left[\left(\boldsymbol{E^\top E}\right)^{-1}\right]$ corresponding to $\beta_1$ and assumed to be 1 with no collinearity if we equilibrate the design matrix $\boldsymbol{X}$. This will almost never be the case, even if we construct $\boldsymbol{X}$ to have as less collinearity as we can. 
+
+This is hardly visible in Figure~\ref{fig:sim_comp} due to the scale  but the Diagonal Entry never reaches 1 in the case where we simulate collinearity with the multivariate normal distribution. Figure~\ref{fig:real_trouble} zooms in and makes this clearer.
+
+\begin{figure}[h]%H is strict!
+\begin{center}
+<<real_trouble_plot, fig.height = 6, fig.width = 8,echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE>>=
+library(ggplot2); library(ggtext)
+
+# Determining minimal trouble value
+df_min_trouble <- df_comp[df_comp$method=="rmvnormal",]
+df_min_trouble$rho_rounded <- round(df_min_trouble$rho,2)
+
+res_quantile <- df_min_trouble %>% group_by(variable, rho_rounded ) %>%
+  summarise(
+  "lower2.5"= quantile(trouble,0.025),
+  "median50" = quantile(trouble,0.5),
+  "upper97.5" = quantile(trouble, 0.975),
+  .groups = 'drop')%>%
+  gather(key = "quantile", value = "trouble",-c(rho_rounded,variable))
+
+p1 <- ggplot(data = df_min_trouble, aes(x=rho,y=trouble,group=run))+
+  geom_line(col="gray")+
+  geom_line(data = res_quantile, col ="black",aes(x = rho_rounded, y = trouble, group = quantile,linetype = quantile))+
+  geom_vline(xintercept = 0, lty=2)+
+  facet_grid(.~variable)+
+  coord_cartesian(ylim = c(0, 50))+
+  geom_hline(yintercept = 1, lty = 2)+
+  theme_classic()+
+  scale_linetype_discrete(name = "",
+                 breaks = c("lower2.5", "median50", "upper97.5"),
+                 labels = c("2.50% Quantile", "50.0% Quantile", "97.5% Quantile"))+
+    xlab(expression(rho))+ylab("Diagonal Entry (Trouble)")
+
+
+# load data set for cross-section
+df_min_trouble <- readRDS("../data/df_min_trouble.rds")
+
+# adding quantiles
+res_quantile <- df_min_trouble %>% group_by(variable ) %>%
+  summarise(
+  "lower2.5"= quantile(trouble,0.025),
+  "median50" = quantile(trouble,0.5),
+  "upper97.5" = quantile(trouble, 0.975),
+  .groups = 'drop') %>%
+  gather(key = "quantile", value = "trouble",-c(variable))
+
+p2 <- ggplot(data = df_min_trouble, aes(x= trouble,fill= variable))+
+  geom_histogram(aes(y=..density..),
+                 fill = "gray",col = "black",
+                 show.legend = F)+
+  geom_density(aes(y=..density..),fill = NA,show.legend = F)+
+  geom_vline(data =res_quantile,col = "black", 
+             aes(xintercept= trouble,linetype = quantile))+
+  geom_richtext(data =res_quantile,col = "black", 
+             aes(x= trouble, y=Inf, label = round(trouble,3) ),
+             angle = 90, hjust=1,show.legend = F,fill="white")+
+  facet_grid(.~variable,scales = "free")+
+  scale_linetype_discrete(name = "",
+              breaks = c("lower2.5", "median50", "upper97.5"),
+              labels = c("2.50% Quantile", "50.0% Quantile", "97.5% Quantile"))+
+  xlab("Diagonal Entry (Trouble)")+
+  theme_classic()
+
+#plotting both together
+library(ggpubr)
+p_tot <- ggpubr::ggarrange(p1,p2,ncol=1, nrow=2, align = "v",
+                  common.legend = T, legend="bottom"
+                  )
+annotate_figure(p_tot, top = text_grob('Visualizing rational for "no" collinearity assumption',color = "black", face = "bold", size = 14))
+
+@
+\end{center}
+\vspace{-1cm}
+\caption{Visualization of the dynamic of the diagonal entries and a cross-section at $\rho=0$, represented by the histograms. In addition, the 2.5\%, 50\%, 97.5\% quantiles are plotted as well.}
+\label{fig:real_trouble}
+\end{figure}
+\vspace{-0.4cm}
+To get an even clearer picture about the distribution of the diagonal entries (\texttt{trouble}) at the point where the collinearity within $\boldsymbol{X}$ should be lowest, ($\rho=0$) we draw \Sexpr{nrow(df_min_trouble)/3} data sets, each containing \Sexpr{n_explore} observations. Then we calculate the diagonal entries of $\left(\boldsymbol{E^\top E}\right)^{-1}$, plot it with a histogram for each variable separately and also add the 2.5\%, 50\% and 97.5\% quantiles (Figure~\ref{fig:real_trouble}
+). We see that even though we construct $\boldsymbol{X}$ as good as we can to have no collinearity and thus would mean that the diagonal entries of $\left(\boldsymbol{E^\top E}\right)^{-1}$ are equal to 1, this is simply not the case. 
+
+
+<<eval = T, echo=F>>=
+# Sample size calculation 
+library(Collinearity)
+n_cont_unreal <- Collinearity::copowerlm(power = 0.8, n=NULL, alpha = 0.05,
+                                         Delta = beta_1[1],
+                                         sigma = s_y[1], p=3 ,
+                                         voilen= sd_x1^2+ mean_x1^2,
+                                         trouble = 1 )$n
+n_cont_unreal<- ceiling(n_cont_unreal)
+
+n_cont <- Collinearity::copowerlm(power = 0.8,n=NULL, alpha = 0.05,
+        Delta = beta_1[1],
+        sigma = s_y[1], p=3 ,
+        voilen= sd_x1^2+ mean_x1^2,
+        trouble = c(res_quantile[res_quantile$variable=="x1" &
+                    res_quantile$quantile=="upper97.5"  ,]$trouble)
+           )$n
+n_cont <- ceiling(n_cont)
+
+n_overpowered <- ceiling(n_cont*10/100)*100
+
+n_obs <- c(n_cont_unreal, n_cont, n_overpowered)
+
+# add n
+boston_parameters <- readRDS("../data/boston_parameters.rds")
+boston_parameters$n_obs <- n_obs
+saveRDS(boston_parameters, file = "../data/boston_parameters.rds")
+@
+
+A sample size, calculated with \texttt{trouble} equals to 1, would yield \texttt{n\_obs} to be \Sexpr{n_cont_unreal} (rounded up to the next integer).
+If we set \texttt{trouble} to the 97.5\% quantile, which is $\approx$\Sexpr{round(res_quantile[res_quantile$variable=="x1" & res_quantile$quantile=="upper97.5"  ,]$trouble,3)}, we get a sample size of \Sexpr{n_cont}.
+This then covers 97.5\% of all cases when the collinearity is as low as possible. 
+
+To see what happens to the estimates with different sample sizes, we add as sample size levels \Sexpr{n_cont_unreal} and an over-powered case with \Sexpr{n_overpowered} which corresponds to the sample size of \Sexpr{n_cont} times 10 rounded up to the next hundred.
+Thus, this means throughout the simulation we have three different levels as \texttt{n\_obs<-c(\Sexpr{n_cont_unreal}, \Sexpr{n_cont}, \Sexpr{n_overpowered})}.
+
+% % %%%%%%%%
+\subsection{Range and grid of the collinearity magnitude}
+% % %%%%%%%%
+
+
+<<echo=FALSE>>=
+# Determining minimal trouble value
+df_cond_nu_range <- df_comp[(df_comp$method=="rmvnormal" & df_comp$variable=="x1"),]
+@
+
+Since we have chosen to simulate collinearity over the correlation matrix, defining the range of \texttt{rho} is easy: (-1,0). The negative correlation is chosen because the relation between $\boldsymbol{x}_1$ and $\boldsymbol{x}_2$ is negative too (Table~\ref{tab:bost_exp}). This results in this setup in a condition number range of (\Sexpr{range(df_cond_nu_range$cond_nu)}).
+
+So far, we explored the different collinearity magnitudes with an equal spaced grid on the correlation level (\texttt{rho<-seq(from=-1,to=0,length.out=no\_coll\_magnitude)}), where the number of different correlation levels is \Sexpr{no_coll_magnitude} (\texttt{no\_coll\_magnitude}).
+But the relation between correlation and condition number is of course not linear, leading to the fact that the condition number grid is not explored by even steps, which is visible in Figure~\ref{fig:corcond}. 
+\begin{figure}[H]%H is strict!
+\begin{center}
+<<corcond, fig.height = 2, fig.width = 3,echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE, dev='pdf'>>=
+size <- 9
+ggplot(data = df_cond_nu_range[df_cond_nu_range$run==1,],
+       aes(x=rho, y= cond_nu,col = run))+
+  geom_point(show.legend = F,col = "black")+
+  geom_line(show.legend = F,col = "black")+
+  geom_hline(yintercept = 30,lty = 2)+
+  theme_classic()+
+  labs(title = "Condition number and correlation relation",
+             y ="Condition Number", x = "rho")+
+  theme(axis.text = element_text(size = size),
+        axis.text.x = element_text(size = size),
+        axis.text.y = element_text(size = size),
+        axis.title = element_text(size = size),
+        plot.title = element_text(size = size)
+        ) 
+@
+\end{center}
+\vspace{-0.8cm}
+\caption{Visualization how the correlation translates into the condition number for one run.}
+\label{fig:corcond}
+\end{figure}
+This is a bit unfortunate as we also want to explore higher collinearity magnitudes. But we can solve this issue with the Fisher transformation (\cite{Fisher1915}) since it is used to transform highly skewed correlation coefficients $\rho$ to be approximately normally distributed. By doing this, one can compute reliable statistics of $\rho$ and of course we can use this transformation for our situation to explore higher condition numbers at a finer grid.
+\begin{figure}[H]%H is strict!
+\begin{center}
+<<fisher_trans, fig.height = 2.5, fig.width = 6,echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE >>=
+# equally spaced
+size <- 9
+set.seed(324324)
+fisher <- seq(from=-4,to = 0, length.out = 1000)
+no_explore <- 500
+rho <- tanh(fisher)
+condition_number <- numeric(length(fisher))
+rho_actual <- numeric(length(fisher))
+for(i in 1:length(rho)){
+  X<-mvtnorm::rmvnorm(n = no_explore,
+    mean = c(mean_x1,mean_x2),
+    sigma = matrix( c(sd_x1^2, rho[i]*sd_x1*sd_x2,rho[i]*sd_x1*sd_x2, sd_x2^2), 
+                    ncol = 2) )
+  rho_actual[i]<-cor(X)[2,1]
+  X<-cbind(1,X);colnames(X)<- c("const", "x1", "x2")
+  condition_number[i]<-max(Collinearity::Var_decom_mat(X)[,"cond_ind"])
+}
+dd_fisher <- data.frame("fisher"=fisher,"rho"= rho, "rho_actual" = rho_actual,
+                        "cond_nu"=condition_number)
+dd_fisher <- dd_fisher[order(dd_fisher$fisher, decreasing = TRUE),]
+dd_fisher$prop <- cumsum(dd_fisher$cond_nu>=30)/(1:nrow(dd_fisher))
+
+# parameter to add
+lower_fisher_rho <- round(dd_fisher[which(dd_fisher$prop>=1/3)[1],]$fisher,1)
+no_coll_magnitude <- 20
+
+#plotting
+require(ggplot2)
+p1 <- ggplot(data = dd_fisher ,aes(x = fisher, y = rho))+
+  geom_point(size = 0.1)+
+  labs(x = bquote("Fisher transformed"~rho~"(z)"), y =  bquote(rho) )+
+  theme_classic()+
+  theme(axis.text = element_text(size = size),
+      axis.text.x = element_text(size = size),
+      axis.text.y = element_text(size = size),
+      axis.title = element_text(size = size),
+      plot.title = element_text(size = size)
+      ) 
+
+p3 <- ggplot(data = dd_fisher ,aes(x = rho, y = cond_nu))+
+  geom_point(size = 0.1)+
+  labs(x = bquote(rho), y = bquote(kappa(bold(E))) )+
+  theme_classic()+
+  theme(axis.text = element_text(size = size),
+      axis.text.x = element_text(size = size),
+      axis.text.y = element_text(size = size),
+      axis.title = element_text(size = size),
+      plot.title = element_text(size = size)
+      ) 
+
+p4 <- ggplot(data = dd_fisher ,aes(x = fisher, y = cond_nu))+
+  geom_point(size = 0.1)+
+  labs(x = bquote("Fisher transformed"~rho~"(z)"), y = bquote(kappa(bold(E))) )+
+  theme_classic()+
+  theme(axis.text = element_text(size = size),
+      axis.text.x = element_text(size = size),
+      axis.text.y = element_text(size = size),
+      axis.title = element_text(size = size),
+      plot.title = element_text(size = size)
+      ) 
+
+p2 <- ggplot(data = dd_fisher ,aes(x = fisher, y = prop))+
+  geom_point(size = 0.1)+
+  geom_hline(yintercept = 1/3,lty = 2)+
+  geom_vline(xintercept = dd_fisher[which(dd_fisher$prop>=1/3)[1],]$fisher,
+             lty = 2)+
+  labs(x = bquote("Fisher transformed"~rho~"(z)"), y = bquote(kappa(bold(E))>=30)  )+
+  theme_classic()+
+  theme(axis.text = element_text(size = size),
+      axis.text.x = element_text(size = size),
+      axis.text.y = element_text(size = size),
+      axis.title = element_text(size = size),
+      plot.title = element_text(size = size)
+      ) 
+
+#plotting both together
+library(ggpubr)
+p_tot <- ggpubr::ggarrange(p1,p2,p3,p4,ncol=2, nrow=2, align = "v",
+                  common.legend = T, legend="bottom"
+                  )
+annotate_figure(p_tot, top = text_grob(bquote("Fisher transformation of"~rho),
+                                    color = "black", face = "bold", size = 10))
+@
+\end{center}
+\vspace{-0.8cm}
+\caption{For \Sexpr{length(fisher)} \textit{Fisher transformed rho} (\texttt{z}) on a grid between \Sexpr{min(fisher)} and \Sexpr{max(fisher)}, the transformation to $\boldsymbol{X}$, via the correlation coefficient $\rho$ is simulated. Each $\boldsymbol{X}$ contains \Sexpr{no_explore} observations and the condition number is calculated with the function \texttt{Collinearity::Var\_decom\_mat(X)}.}
+\label{fig:fisher_trans}
+\end{figure}
+
+The Fisher transformation, which is essentially the inverse hyperbolic tangent function (\texttt{z<-atanh(rho)}), maps $\rho$ which is defined within $[-1,1]$ onto $(-\infty, \infty)$. This means we lose the lower boundary of -1 and thus have to determine it. We do this by setting the proportion of condition numbers, larger than Belsley's cut-off value of 30, to be $1/3$ and determine the maximum \textit{Fisher transformed rho} (\texttt{z}) to achieve this. Figure~\ref{fig:fisher_trans} iterates \texttt{z} on an equally-spaced grid between \Sexpr{min(fisher)} and \Sexpr{max(fisher)} for \Sexpr{length(fisher)} different values. Then the back-transformation to \texttt{rho} is applied (\texttt{rho<-tanh(z)}) and $\boldsymbol{X}$ is constructed, each having \Sexpr{no_explore} observations. Then the condition number for $\boldsymbol{X}$ is calculated.
+The proportion of condition numbers that are higher or equal to 30 are visualized on the upper-right panel and we see that we need the lower limit of the \textit{Fisher transformed rho} (\texttt{z}) to be $\approx$\Sexpr{lower_fisher_rho} to get the desired proportion of $1/3$. Furthermore, the number of different collinearity magnitudes (\texttt{no\_coll\_magnitude}) does not have to be very large, also for computational reasons, and thus we set it to \Sexpr{no_coll_magnitude}. 
+
+Thus, to summarize, the collinearity magnitude in the simulation study will be explored with:
+\texttt{rho <- tanh(seq(from=lower\_fisher\_rho,to = 0, length.out = no\_coll\_magnitude))}\\
+where \texttt{lower\_fisher\_rho}=\Sexpr{lower_fisher_rho} and \texttt{no\_coll\_magnitude}=\Sexpr{no_coll_magnitude}.
+Table~\ref{tab:rho} visualizes the translation from the \textit{Fisher transformed rho} (\texttt{z}) to the condition number via the rho corresponding to the correlation coefficient ($\rho$).
+
+\begin{table}[H]\begin{center}
+\caption{Visualization how an equally binned \textit{Fisher transformed rho} (\texttt{z}) translates into rho on the correlation level scale ($\rho$) and then into the condition number ($\kappa\left(\boldsymbol{E}\right)$). Note that rho ($\rho$) is only the theoretically assigned for the simulation and deviates to some extent from the actual rho ($\hat\rho$) in the simulated data.}\label{tab:rho}
+<<tab_rho, results = "asis", echo = FALSE>>=
+library(xtable)
+set.seed(4324)
+fisher <- seq(from =round(lower_fisher_rho,1),to = 0, by = 0.2)
+rho <- tanh(fisher)
+condition_number <- numeric(length(fisher))
+rho_actual <- numeric(length(fisher))
+for(i in 1:length(rho)){
+  X<-mvtnorm::rmvnorm(n = no_explore,
+    mean = c(mean_x1,mean_x2),
+    sigma = matrix( c(sd_x1^2, rho[i]*sd_x1*sd_x2,rho[i]*sd_x1*sd_x2, sd_x2^2), 
+                    ncol = 2) )
+  rho_actual[i] <- cor(X)[1,2]
+  X<-cbind(1,X);colnames(X)<- c("const", "x1", "x2")
+  condition_number[i]<-max(Collinearity::Var_decom_mat(X)[,"cond_ind"])
+}
+dd <- cbind(fisher, c("",round(diff(fisher),3)),round(rho,3), 
+            c("",round(diff(rho),3)) ,round(rho_actual,3),
+              round(condition_number,3))
+xtab1 <- xtable(dd)
+colnames(xtab1) <- c("Fisher transformed rho (z)","",  "rho ($\\rho$)",
+                     "","rho after sim. ($\\hat\\rho$)", "$\\kappa\\left(\\boldsymbol{E}\\right)$")
+
+rownames(xtab1) <- NULL
+print(xtab1, showAllLevels = TRUE, booktabs = TRUE,size = "footnotesize",
+  include.rownames=FALSE, printToggle = FALSE, noSpaces = TRUE, floating = FALSE,
+  sanitize.text.function=function(x){x})
+@
+\end{center}\end{table}
+
+
+<<echo=F>>=
+# add parameters
+boston_parameters <- readRDS("../data/boston_parameters.rds")
+boston_parameters$no_coll_magnitude <- no_coll_magnitude
+boston_parameters$lower_fisher_rho <- lower_fisher_rho
+saveRDS(boston_parameters, file = "../data/boston_parameters.rds")
+@
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Estimands}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+The estimands considered are the coefficients $\hbbeta[i,j]$, standard error $\se\left(\hbbeta[i,j]\right)$ and the Wald statistics $\hbt[i,j]=\frac{\hbbeta[i,j]}{\se\left(\hbbeta[i,j]\right)}$ for the explanatory variables not including the intercept though.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Sample size needed}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+A further measure that is related to the design of the study is the number of observations needed to reach the desired power of 80\% given the current collinearity magnitude.
+We call this measure \texttt{n\_need}, and it is determined with the \texttt{copowerlm} function of the \texttt{Collinearity} package \citep{Collinearity}. 
+As \texttt{copowerlm} is developed to be applicable for the least-squares case and thus is only applied to determine the needed sample size based on results that are fitted with the \texttt{lm} function.
+
+\texttt{copowerlm} can be used as a tool to  determine the appropriate sample size to have a power of 80\% corresponding to a certain variable of interest.
+This function extends already existing sample size software as it takes the collinearity information within the model into consideration and adjusts for that.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Methods}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Multiple linear regression methods:
+\begin{itemize}
+\item \texttt{lm(\dots)}
+\item \texttt{tram::Lm(\dots)}
+\end{itemize}
+Methods are employed at their default parameters.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Performance measures}\label{sec:performance}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+The distribution of the following performance measures is inspected graphically via plotting the trace of the estimands along the condition number grid. The trace means that we compute percentiles (5\%, 25\%, 50\%, 75\%, 95\%) for a specific condition number to get an idea about the distribution of the estimand.
+To have meaningfully computed percentiles, we need to have a certain amount of observations.
+Thus, we employ some sort of \textit{moving quantile} method, where we condense 100 observations into one and calculate the quantiles plus the median condition number for this particular window.
+Then one moves along by dropping the first 10 observations but adds the next 10 and performs the same computation again.
+This procedure is then done until one has moved the window through the whole data set.
+\begin{itemize}
+\item Both statistical methods not comparable:
+  \begin{itemize}
+  \item Trace of the estimated coefficient $\hbbeta[i,j]$
+  \item Trace of the standard error $\se\left(\hbbeta[i,j]\right)$
+  \item Trace of the bias $\E\left(\hbbeta[i,j]\right)-\bbeta[j]$
+  \end{itemize}
+\item Both statistical methods comparable:
+  \begin{itemize}
+  \item Trace of the Wald statistics $\hbt[i,j]$ 
+  \item Trace of the relative bias $\left(\frac{\E\left(\hbbeta[i,j]\right)-\bbeta[j]}{\bbeta[j]}\right)$
+  \item Proportion of $p$-values $\leq\alpha=0.05$ plus discriminating whether the estimate has a correct or incorrect sign and thus is correctly or incorrectly significant
+  \end{itemize}
+\item Plotting the Wald statistics of \texttt{tram::Lm} minus the \texttt{lm} model on the $y$-axis versus the condition number on the $x$-axis.
+\item Plotting the Wald statistics of the \texttt{tram::Lm} model on the $y$-axis versus the Wald statistics of the \texttt{lm} model on the $x$-axis.
+\item Plotting the Wald statistics of \texttt{tram::Lm} minus the \texttt{lm} model on the $y$-axis versus the Wald statistics of the \texttt{lm} model on the $x$-axis
+\end{itemize}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Determining the number of simulations}\label{sec:B}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+According to \cite{Burton2006}, the determination of the number of simulations to be performed ($B$) \textit{can} be based on the accuracy of the estimate of interest. One can make a sample size calculation based on the (1-$\alpha$)\% confidence interval with a \textit{fixed width}. Thus, the (1-$\alpha$)\% confidence interval for $\bar{\hat{t}}$ is 
+\begin{align*}
+\bar{\hat{t}}\pm Z_{1-(\alpha/2)}\cdot \se\left(\bar{\hat{t}}\right)
+\end{align*}
+with standard error being
+\begin{align*}
+\se\left(\bar{\hat{t}}\right) &=\sqrt{\var\left(\frac{1}{B}\sum_{i=1}^{B}\hbt[i]\right)}=\sqrt{\frac{1}{B} \var\left(\hbt[i]\right) }=\frac{\sqrt{\var\left(\hbt[i]\right) }
+}{\sqrt{B}}
+\end{align*}
+The half width of the confidence interval, which we call $\delta$, is then
+\begin{align*}
+\delta&=Z_{1-(\alpha/2)}\cdot \frac{\sqrt{\var\left(\hbt[i]\right) }
+}{\sqrt{B}}
+\end{align*}
+which can then be solved for $B$
+\begin{align}
+B&=\left(\frac{Z_{1-(\alpha/2)}\cdot \sqrt{\var\left(\hbt[i]\right) }
+}{\delta}\right)^2
+\label{eq:ss_B}\end{align}
+
+<<echo=F>>=
+
+library(mvtnorm)
+boston_parameters <- readRDS("../data/boston_parameters.rds")
+range_x1 <- boston_parameters$range_x1
+range_x2 <- boston_parameters$range_x2
+# Beta all the first condition
+beta_true <- c(boston_parameters$beta_0, boston_parameters$beta_1[1],
+               boston_parameters$beta_2[1])
+mean_x1 <- boston_parameters$mean_x1
+mean_x2 <- boston_parameters$mean_x2
+sd_x1 <- boston_parameters$sd_x1
+sd_x2 <- boston_parameters$sd_x2
+
+# worst collinearity condition
+rho <- tanh(boston_parameters$lower_fisher_rho)
+# noisiest data
+s_y <- max(boston_parameters$s_y)
+# smallest sample size
+n <- min(boston_parameters$n_obs)
+
+# simulate 100 data sets with observations n = 5 that have a condition number of 60 (rounded!)
+n_run <- 100
+max_cond_nu <- 60
+set.seed(324324)
+wald <- c()
+cn <- c()
+while(length(wald) < n_run){
+  #  over rmvnorm
+  X <- mvtnorm::rmvnorm(n =  n, mean = c(0,0),
+                        sigma = matrix(c(1,rho,rho,1),ncol = 2), method="eigen" )
+  X[,1] <- diff(range_x1) *pnorm(X[,1]) + range_x1[1]
+  X[,2] <- diff(range_x2) *pnorm(X[,2]) + range_x2[1]
+  X <- cbind("const"=1, "x1"=X[,1], "x2"=X[,2])
+  X <- data.frame(X)
+  eps_y <- rnorm(n = n)
+  X$y <- as.matrix(X)%*%beta_true + s_y*eps_y
+  m <- lm(data = X, y ~ x1 + x2)
+  cond_nu <- max(Collinearity::Var_decom_mat.lm(m)[,"cond_ind"])
+  if(round(cond_nu,0)== max_cond_nu){
+    wald <- c(wald, summary(m)$coef[2, 3])# extract wald for x1
+    cn <- c(cn, cond_nu)
+  }
+}
+sigma <- sd(wald)
+delta <- 0.1
+B <- (qnorm(0.975)*sigma/delta)^2
+
+# add B
+boston_parameters$B <- ceiling(B)
+saveRDS(boston_parameters, file = "../data/boston_parameters.rds")
+@
+
+The half-width $\delta$ is the pre-specified level of accuracy for the estimate of interest, which is in our case the Wald-statistics $\hbt[i]$ corresponding to the variable of interest. $\delta$ means the largest difference $|\hbt[i]-\t[i]|$ one is willing to accept, and we take here \Sexpr{delta} as reasonable.
+
+$\sqrt{\var\left(\hbt[i]\right) }$ is the variance of $\hbt[i]$ and is determined by an initial small run employed at the worst condition, which is the situation with the highest collinearity magnitude that we are going to inspect as $\kappa\left(\boldsymbol{E}\right)=\Sexpr{max_cond_nu}$ and with the noisiest and in-stable data specified with \texttt{s\_y}=\Sexpr{s_y} and \texttt{n}=\Sexpr{n}.
+Due to the instability, the resulting condition numbers vary quite heavily, and thus we simulate data with a \texttt{while} loop and only take the realizations where a condition number rounded to full digits is equal to \Sexpr{max_cond_nu} and continue the loop until we have \Sexpr{n_run} $\hbt[i]$ values.
+Thus, we employ Equation~\eqref{eq:ss_B} with $\alpha=0.05$, $\delta$=\Sexpr{delta} and $\sqrt{\var\left(\hbt[i]\right) }$=\Sexpr{round(sigma,3)} which yields $B\approx$\Sexpr{ceiling(B)}.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Handling exceptions}\label{sec:sim_exceptions}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+When running the estimation methods, errors and warnings will be caught with NA values and the resulting output from the method will be considered unreasonable and thus will be missing. The cause of the issues will not be explicitly examined. Investigating any occurring exceptions will be facilitated since we store the random seed before each simulation run.
+
+
+
+
+
+
+
+
+

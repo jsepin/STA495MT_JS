@@ -1,0 +1,785 @@
+% LaTeX file for Chapter 02
+<<'preamble02',include=FALSE, cache=FALSE >>=
+library(knitr)
+library(scatterplot3d); library(scales); library(mvtnorm);library(Collinearity)
+library(tableone);library(biostatUZH);library(xtable)
+library(RColorBrewer)
+library(tidyverse)
+library(tram);library(survival)
+
+opts_chunk$set( 
+    fig.path='figure/ch02_fig',    
+    self.contained=FALSE,
+    cache=TRUE,#reduced time if TRUE
+    dev = "png" # reduced size!
+) 
+@
+
+\chapter{Methods}\label{chap:methods}
+This chapter summarizes the statistical methods used and provides some mathematical derivations and formulas.
+It is based on the books by \cite{montgomery, Draper1998,Held2020} with several adaptions to better crystallize the theoretical knowledge that is necessary later on.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Linear regression models and least-squares estimator}\label{sec:least_squares}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Modeling and estimating the linear relationship between a continuous response $\y$ and one or more explanatory variables is called linear regression analysis. The change in the response $\boldsymbol{y}\in\R^{n\times 1}$ as a reaction to changes in the explanatory variables gets quantified by the coefficients $\boldsymbol{\beta}\in\R^{p\times 1}$ and represents the main target of multiple linear regression analysis. The linear model that also represents the conditional expectation model takes the form
+\begin{align}
+\boldsymbol{y}=\boldsymbol{X\beta}+\bvarepsilon\cdot \sigma \label{eq:2.1}
+\end{align}
+with $\boldsymbol{X}$ being the so called design matrix of dimension $n\times p$ where $n$ refers to the number of observations and $p$ to the number of explanatory variables including a constant. In order to be well-specified, the model assumes the following:
+\begin{enumerate}
+\item Linearity in $\boldsymbol{X\beta}$
+\item Errors $\bvarepsilon$ are identically and independently standard normal distributed as $\bvarepsilon[i]\sim\N\left(0,1\right)$
+\item The errors are further scaled by $\sigma$ which stays constant throughout the whole range of $\X$ (homoscedasticity) 
+\end{enumerate}
+
+The least-squares estimator $\hbbeta$ is a function $S\left(\hbbeta\right)$ which finds the best fitting coefficients by minimizing the squared error term $\bvarepsilon\in\R^{n\times 1}$ as
+\begin{align}
+S(\bbeta)&=\sum_{i=1}^{n}\bvarepsilon[i]^2=\bvarepsilon^\top\bvarepsilon=(\y-\X\bbeta)^\top(\y-\X\bbeta)
+\end{align}
+which can be rearranged to
+\begin{align*}
+S(\bbeta)&=\boldsymbol{y^\top y}-\underbrace{\boldsymbol{\beta^\top X^\top y}}_{\text{dim:}1\times 1}-\underbrace{\boldsymbol{y^\top X\beta}}_{\text{dim:}1\times 1}+\boldsymbol{\beta^\top X^\top X\beta}\\
+&=\boldsymbol{y^\top y}-2\boldsymbol{\beta^\top X^\top y}+\boldsymbol{\beta^\top X^\top X\beta}
+\end{align*}
+To obtain the least-squares estimators we have to take the derivative with respect to the coefficients, set to zero and evaluate at the estimates
+\begin{align}
+\frac{\delta S(\bbeta)}{\delta\boldsymbol{\beta} }\Big|_{\hbbeta} =-2\X^\top \y+2\X^\top \X\hbbeta&\stackrel{!}{=}\boldsymbol{0}\nonumber\\
+\X^\top \X\hbbeta&=\X^\top \y\nonumber\\
+\hbbeta&=\left(\X^\top \X\right)^{-1}\X^\top \y
+\label{eq:lse}
+\end{align}
+This is a convenient analytical solution but it assumes that the inverse of $\X^\top \X$ exists which can pose difficulties as we will see. In \textsf{R}, by executing the command \texttt{lm} what happens is essentially what Equation~\eqref{eq:lse} describes.
+
+% %%%%%%%%%%%%
+\subsection*{Properties of the least-squares estimator}\label{sec:prop}
+% %%%%%%%%%%%%
+To understand the impact of collinearity with respect to the estimation process, it is worth to have a look at some properties of the least-squares estimator.
+\subsubsection{Expectation}
+Assuming the model is well specified, the expectation of the least-squares estimator $\hbbeta$ is:
+\begin{align*}
+\E\left(\hbbeta\right)&=\E\left[\left(\boldsymbol{X^\top X}\right)^{-1}\boldsymbol{X^\top y} \right]=\E\left[\left(\boldsymbol{X^\top X}\right)^{-1}\boldsymbol{X^\top (\boldsymbol{X\beta}+\boldsymbol{\varepsilon})} \right]\\
+&=\E\left[\underbrace{\left(\boldsymbol{X^\top X}\right)^{-1}\boldsymbol{X^\top}\boldsymbol{X}}_{=\boldsymbol{I}}\boldsymbol{\beta}+ \left(\boldsymbol{X^\top X}\right)^{-1}\boldsymbol{X^\top}\boldsymbol{\varepsilon}\right]=\E\left[\boldsymbol{\beta}\right]+ \left(\boldsymbol{X^\top X}\right)^{-1}\boldsymbol{X^\top}\E\left[\boldsymbol{\varepsilon}\right]
+\end{align*}
+since the explanatory variables are fixed (measured without error), the errors $\E(\boldsymbol{\varepsilon})=\boldsymbol{0}$ and the coefficients are unknown but constant as $\E(\bbeta)=\bbeta$, this means
+\begin{align}
+\E\left(\hbbeta\right)&=\bbeta \label{eq:expectation}
+\end{align}
+and therefore the least-square estimator $\hbbeta$ is an unbiased estimator for $\bbeta$.
+
+\subsubsection{Variance}
+
+The variance, or better the covariance for a multidimensional setting, of $\hbbeta$ is computed by applying a variance operator on $\hbbeta$ :
+\begin{align*}
+\var\left(\hbbeta\right)&=\var\left[\left(\boldsymbol{X^\top X}\right)^{-1}\boldsymbol{X^\top y}\right]=\left(\boldsymbol{X^\top X}\right)^{-1}\boldsymbol{X^\top} \var\left[\boldsymbol{y}\right]\left[\left(\boldsymbol{X^\top X}\right)^{-1}\boldsymbol{X^\top}\right]^\top
+\end{align*}
+because the uncertainty of the response $\boldsymbol{y}$ is described by the errors that are independent and identically distributed, it holds that $\var\left(\boldsymbol{y}\right)=\var\left(\boldsymbol{X\beta}+\boldsymbol{\varepsilon}\right)=\sigma^2\I$ which uses the fact that $\boldsymbol{X\beta}$ is also constant and thus has a variance of zero. Therefore
+\begin{align*}
+\var\left(\hbbeta\right)&=\sigma^2\left(\boldsymbol{X^\top X}\right)^{-1}\boldsymbol{X^\top}\left[\left(\boldsymbol{X^\top X}\right)^{-1}\boldsymbol{X^\top}\right]^\top=\sigma^2\left(\boldsymbol{X^\top X}\right)^{-1}\boldsymbol{X^\top X}\left(\boldsymbol{X^\top X}\right)^{-1}
+\end{align*}
+\begin{align}
+\var\left(\hbbeta\right)&=\sigma^2\left(\boldsymbol{X^\top X}\right)^{-1}\label{eq:var_ls}
+\end{align}
+
+Noteworthy is at this point that $\sigma$ is treated as a constant although it has to be estimated from the data. 
+
+\subsubsection{Distribution of the least-squares estimator}
+The distribution of the least-squares estimator can be determined by rearranging Equation~\eqref{eq:lse} as following
+\begin{align}
+\hbbeta&=\left(\X^\top \X\right)^{-1}\X^\top \y \nonumber\\
+&=\left(\X^\top \X\right)^{-1}\X^\top \left(\X\bbeta+\bvarepsilon\right)\nonumber\\
+&=\bbeta + \left(\X^\top \X\right)^{-1}\X^\top \bvarepsilon \label{eq:lincomest}
+\end{align}
+where we see that $\hbbeta$ is a linear combination of $\bvarepsilon$ which is the only stochastic component in Equation~\eqref{eq:lincomest} since the explanatory variables but also the true but unknown coefficient $\bbeta$ are fixed. Thus, a linear combination of a normal distributed random variable is again normally distributed with mean and variance obtained from \eqref{eq:expectation} and \eqref{eq:var_ls}. Thus, the distribution of the estimator is
+\begin{align}
+\hbbeta\sim \N_p\left(\bbeta,\sigma^2\left(\boldsymbol{X^\top X}\right)^{-1}\right)  \label{eq:distlse}
+\end{align}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Transformation models}\label{sec:trans_model}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\cite{Hothorn2020} nicely proposes a prospective to unify a wide range of statistical models by moving to conditional distributions and thus leaves the models relying on conditional expectation behind. We get there by rearranging the familiar model, noted by Equation \eqref{eq:2.1}, to model the error term $\bvarepsilon$ as
+\begin{align*}
+\frac{\y-\boldsymbol{X\beta}}{\sigma}&=\boldsymbol{\varepsilon}
+\end{align*}
+This is done because the error term $\bvarepsilon$ is the only stochastic component of the model and in this transformed linear model framework we specify the error terms to be standard normally distributed with $\bvarepsilon[i]\sim\N(0,1)$. Moreover, we can treat the constant term from the least-squares method separately by letting $\bbeta=\left[\alpha,\boldsymbol{\tilde{\beta}}\right]$ and $\X=\left[\boldsymbol{1},\boldsymbol{\tilde{X}}\right]$. For one observation, the model takes then the form
+\begin{align*}
+\frac{\y[i]-\alpha -\boldsymbol{\tilde X}[i,]\boldsymbol{\tilde\beta}}{\sigma}&=\bvarepsilon[i]\sim \N(0,1)
+\end{align*}
+Modelling via conditional distribution function, this turns to
+\begin{align}
+\bfP(Y[i]\leq \y[i]\mid\boldsymbol{\tilde X}[i,])=\Phi\left(\frac{\y[i]-\alpha-\boldsymbol{\tilde X}[i,]\boldsymbol{\tilde{\beta}} }{\sigma}\right) \label{eq:lspara}
+\end{align}
+and to make sense of the name \textit{transformation model} we further reformulate to
+\begin{align}
+\bfP(Y[i]\leq \y[i]\mid\boldsymbol{\tilde X}[i,])=\Phi\left(\underbrace{-\frac{\alpha}{\sigma}}_{\theta_0}+\underbrace{\frac{1}{\sigma}}_{\theta_1}\y[i]-\boldsymbol{\tilde X}[i,]\underbrace{\frac{\boldsymbol{\tilde\beta}}{\sigma}}_{\boldsymbol{\beta_\tram}}\right)=\Phi\left(\theta_0+\theta_1 \y[i]-\boldsymbol{\tilde X}[i,]\boldsymbol{\beta_\tram} \right) \label{eq:ll_trans}
+\end{align}
+where we see that the number of parameters to be estimated simultaneously  is now $p+1$ which is due to $\theta_1=\sigma^{-1}$. This means that $\theta_1$ is not estimated independently from $\boldsymbol{\beta_\tram}$ as it is the case in the least-squares setup.
+
+Now, we introduce the transformation function $h(\y[i]|\boldsymbol{\theta})$ which is in this particular case $\theta_0+\theta_1 \y[i]$ and the purpose of it is doing the best it can to transform the response $\y$ to follow the distribution we want, which is here a standard normal distribution $\N(0,1)$ specified by $\Phi(z)=F_Z(z)$:
+\begin{align}
+\bfP(Y[i]\leq \y[i]\mid\boldsymbol{\tilde X}[i,])=F_Z\left(h(\y[i]|\boldsymbol{\theta})-\boldsymbol{\tilde X}[i,]\boldsymbol{\beta_\tram} \right) \label{eq:gentram}
+\end{align}
+Equation~\eqref{eq:gentram} describes the general specification of a transformation model as it is used in the \texttt{tram} package \citep{Hothorn2020}. The transformation function in \eqref{eq:ll_trans} is linear and gets fitted by executing the command \texttt{tram::Lm} in \textsf{R}. However, we are by no means limited to this linearity and sometimes it is also necessary to use more complex transformations to assure our model is well-specified. Similarly as we see sometimes log or square-root transformed responses as an attempt to assure normality, we can use highly flexible functions such as splines to get a data-driven transformation. Such functions easily help to transform the outcome, which only has to be at least ordinal, to follow the distribution we want (not limited to normal distribution). The only restriction we must respect is that the transformation function is monotone, not strictly though. Whereas in the linear model so far we have estimated the coefficients via the least-squares method, we estimate them now by optimizing the likelihood. For more details with respect to the underlying functionalities of the \texttt{tram} package we refer the reader to \cite{Hothorn2020} and for more theoretical issues to \cite{Hothorn2017}.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Collinearity and its problems}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Collinearity actually can be reformulated into the problem that the inverse of $\boldsymbol{X^\top X}$ in Equation~\eqref{eq:lse} does not, or almost not, exist. A strict non-existence arises when the $p\times p$ matrix $\boldsymbol{X^\top X}$ is not of full rank ($\text{rank}(\X^\top \X)<p$) which consequently means the rank of $\X$ is also not full ($\text{rank}(\X)<p$). Rank deficiency of $\X$, and thus the \textit{non-existence} of the inverse, happens when there is linear dependence among the columns of $\X$. However, a strict non-existence is hardly the case and therefore the inverse matrix $\left(\X^\top \X\right)^{-1}$ most likely exists. The damage caused by this almost non-existence might be still severe and probably is even more dangerous than a complete absence of the inverse. This, because it still provides results that might lead to wrong conclusions.
+
+In a first step, we will demonstrate what collinearity's simplest representative, correlation, causes.
+For this, we will center and subsequently equilibrate the data to have $\X^\top \X$ in the form of a correlation matrix $\boldsymbol{C}$. We have then a one-to-one relationship what correlation does to the least-squares estimator $\hbbeta$.
+
+However, centering means that an intercept is removed, and as we will later see, the intercept can also be involved in collinearity and thus centering is not an option. One might ask at this point why we even need to transform our data set at all and the answer is that linear transformations on $\X$ result in different collinearity diagnostics. This means that the collinearity diagnostics will tell a different story although the problem is essentially the same. This should be avoided and therefore the diagnostics has to be applied on data that is as much unified as possible. 
+
+% %%%%%%%%%%%%
+\subsection{Equilibration of the design matrix}
+% %%%%%%%%%%%%
+
+Standardization is needed since it does not matter for example whether the size of a field is in $m^2$ or in $ha$ or the amount of fertilizer is in liters or deciliters. This will provide essentially the same information via the estimated coefficients but will result in different collinearity diagnostic measures. Thus, there is a need to transform the data appropriately and a common transformation of $\X$ is \textit{equilibration} which means that after transformation, the columns have unit length.
+We call from now on equilibrated matrices $\boldsymbol{E}$. This method is also applied in the procedures developed by \cite{Belsley1991} and is in this report done by executing the command \texttt{equilibrate\_matrix} from the \texttt{Collinearity} package \citep{Collinearity}. The procedure works as following
+\begin{align*}
+\boldsymbol{E}[,j] = \frac{\X[,j]}{\|\X[,j]\|}=\frac{\X[,j]}{\sqrt{\sum_{i=1}^n \X[i,j]^2}}
+\end{align*}
+and for a whole matrix
+\begin{align}
+\boldsymbol{E} = \X\cdot\diag\left[\frac{1}{\sqrt{\diag\left(\X^\top \X\right)}}\right]\label{eq:equilibration}
+\end{align}
+$\boldsymbol{E^\top E}$ is then a $p\times p$ symmetric matrix with all diagonals equals to 1. And in the case where all columns are orthogonal (columns are independent), all other entries are zero which represents the most ideal case for linear regression estimands.
+
+% %%%%%%%%%%%%
+\subsection{Standardization of the design matrix - Correlation matrix}\label{sec:transformX}
+% %%%%%%%%%%%%
+
+Although we said that centering is not an option as it removes the intercept from the model, it is more intuitive to have a first look at $\X^\top \X$ and what is caused by collinearity when explanatory variables are \textit{centered and then equilibrated} to unit length. This produces dimensionless coefficients but more importantly $\X^\top \X$ is then in the form of a correlation matrix. However, correlation and collinearity is not exactly the same: Correlation is one special case of collinearity since only \textit{two} variables are linearly dependent or highly correlated. Thus, whereas correlation is also always collinearity, the opposite is not necessarily true.
+
+Centering and subsequent equilibration transforms the design matrix $\X$ to a \textit{standardized} matrix which we call $\W$ from now on. The procedure is applied as follows:
+\begin{align*}
+\W[i,j]&=\frac{\X[i,j]-\bar{\X}[j]}{\sqrt{\S[j,j]}},\qquad i=1,2,...,n,\quad j=1,2,...,p-1
+\end{align*}
+where
+\begin{align*}
+\S[i,j]=\sum_{u=1}^{n}(\X[u,i]-\bar{\X}[i])(\X[u,j]-\bar{\X}[j]),\qquad
+\bar{\X}[j]=\frac{1}{n}\sum_{i=1}^{n}\X[i,j]
+\end{align*}
+
+Each explanatory variable $\W[,j]$ has now mean equals 0 and length $\|\W[,j]\|=1$. Thus, the new design matrix $\W$, and the square of it, is
+\begin{align*}
+\W&=\begin{pmatrix}
+\W[1,1] & \cdots & \W[1,p]\\
+\vdots & \ddots & \vdots\\
+\W[n,1] & \cdots & \W[n,p]
+\end{pmatrix}\in \IR^{n\times p},\qquad
+\boldsymbol{\W^\top}=\begin{pmatrix}
+\W[1,1] & \cdots & \W[n,1]\\
+\vdots & \ddots & \vdots\\
+\W[1,p] & \cdots & \W[n,p]
+\end{pmatrix} \in \IR^{p\times n}\\
+\W^\top \W&=
+\begin{pmatrix}
+\W[1,1] & \cdots & \W[n,1]\\
+\vdots & \ddots & \vdots\\
+\W[1,p] & \cdots & \W[n,p]
+\end{pmatrix}\cdot
+\begin{pmatrix}
+\W[1,1] & \cdots & \W[1,p]\\
+\vdots & \ddots & \vdots\\
+\W[n,1] & \cdots & \W[n,p]
+\end{pmatrix}
+\\&=
+\begin{pmatrix}
+\sum_{u=1}^{n}\W[u,1]\W[u,1]& \cdots & \sum_{u=1}^{n}\W[u,1]\W[u,p]\\
+\vdots & \ddots & \vdots\\
+\sum_{u=1}^{n}\W[u,p]\W[u,1]& \cdots & \sum_{u=1}^{n}\W[u,p]\W[u,p]\\
+\end{pmatrix}
+\in \IR^{p\times p}
+\end{align*}
+which can be expressed componentwise by
+\begin{align*}
+\sum_{u=1}^{n}\W[u,i]\W[u,j]=\sum_{u=1}^{n} \frac{(\X[u,i]-\bar{\X}[i])(\X[u,j]-\bar{\X}[j])}{\sqrt{\S[i,i]\S[j,j]}}=\frac{\S[i,j]}{\sqrt{\S[i,i]\S[j,j]}}=\C[i,j]
+\end{align*}
+
+and $\C[i,j]$ is thus the simple correlation between explanatory variable $\X[,i]$ and $\X[,j]$ and therefore
+
+\begin{align*}
+\boldsymbol{W^\top W}&=\begin{pmatrix}
+1      & \C[1,2] & \cdots &  \C[1,p]\\
+\C[1,2] & 1      & \cdots &  \C[2,p]\\
+\vdots & \vdots & \ddots &  \vdots\\
+\C[1,p] & \C[2,p] & \cdots &  1
+\end{pmatrix}
+\in\IR^{(p-1)\times(p-1)}
+\end{align*}
+is the correlation matrix $\C$. Noteworthy at this point is that the correlation coefficients are invariant to any linear operations (see Appendix~\ref{sec:coinvar}). This means that any design matrix $\X$ that is constructed by linear operations from $\C$ can again be reduced to essentially telling the same correlation story.
+
+% %%%%%%%%%%%%
+\subsection{Problems of collinearity}
+% %%%%%%%%%%%%
+
+To intuitively illustrate the harm caused by collinearity, we reduce the dimension of $\X$ to only having two explanatory variables and assuming the data is standardized. With the design matrix $\X$ replaced by the standardized matrix $\boldsymbol{W}$, we know from Equation~\eqref{eq:lse} that the least-squares estimator, which we denote as $\hb_\text{std.}$ for the standardized case, is then
+\begin{align*}
+\boldsymbol{W^\top W}\hb_\text{std.}&=\boldsymbol{W^\top y}\\
+\hb_\text{std.}&=\left(\boldsymbol{W^\top W}\right)^{-1}\boldsymbol{W^\top y}
+\end{align*}
+where 
+\begin{align*}
+\W^\top \W&=
+\begin{pmatrix}
+1&\C[1,2] \\ \C[1,2] &1
+\end{pmatrix},\qquad
+\left(\W^\top \W \right)^{-1}=
+\begin{pmatrix}
+\frac{1}{1-\C[1,2]^2}        & \frac{-\C[1,2]}{1-\C[1,2]^2} \\
+\frac{-\C[1,2]}{1-\C[1,2]^2} & \frac{1}{1-\C[1,2]^2}
+\end{pmatrix}
+\end{align*}
+Thus, high correlation between $\X[,1]$ and $\X[,2]$ results in a large $\C[1,2]$ which further means that the term $\frac{1}{1-\C[1,2]^2}$ is blown up. This clearly illustrates the relationship between correlation and an almost non-existence of the inverse. Of course, similar problems also happen if $\X$ is not standardized. Thus, we switch now back to the original design matrix $\X$. Consequentially, high collinearity blows up the variance of the least-squares estimate which can be clearly seen when looking at the Equation~\eqref{eq:var_ls}
+\begin{align*}
+\var\left(\boldsymbol{\hat\beta}\right)=\sigma^2\left(\boldsymbol{X^\top X}\right)^{-1}
+\end{align*}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\section{Quantification of collinearity}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\cite{Belsley1991} proposed a collinearity diagnostic procedure where the $n\times p$ design matrix $\X$ is first equilibrated to $\boldsymbol{E}$, as described in Equation~\eqref{eq:equilibration}, and then decomposed as:
+\begin{align*}
+\boldsymbol{E}&=\boldsymbol{UDV^\top}
+\end{align*}
+where $\boldsymbol{U}$ is of dimension $n\times p$, $\boldsymbol{V}$ is $p\times p$ and represents the eigenvectors of $\boldsymbol{E^\top E}$. Further, it holds that $\boldsymbol{U^\top U}=\boldsymbol{V^\top V}=\boldsymbol{I}$. The diagonal matrix $\boldsymbol{D}$ is of dimension $p\times p$ and carries the non-negative elements $\bmu[j], j=1,2,\dots,p$ which are called singular values of $\boldsymbol{E}$.
+Therefore, this method is called singular-value decomposition.
+
+The so called condition indices are defined as:
+\begin{align*}
+\boldsymbol{\eta}[j]=\frac{\text{max}(\bmu)}{\bmu[j]},\qquad j=1,2,\dots,p,
+\end{align*}
+and the largest of them is the condition number denoted as $\frac{\text{max}(\bmu)}{\text{min}(\bmu)}\equiv\kappa\left(\boldsymbol{E}\right)$. \cite{Belsley1991} suggested that appearing condition indices, and therefore also condition numbers, larger than 30 are considered \textit{harmful} (see Sections~\ref{sec:example} and \ref{sec:belsleysexperiment} for more details ).
+
+The singular value decomposition has a close connection to the eigenvalue decomposition which works on the \textit{squared} equilibrated design matrix:
+\begin{align*}
+\boldsymbol{E^\top E}&=\left(\boldsymbol{UDV^\top}\right)^\top \boldsymbol{UDV^\top}\\
+&=\boldsymbol{VDU^\top UDV^\top}\\
+&=\boldsymbol{VD^2V^\top}
+\end{align*}
+
+Thus the eigenvalues, which are the entries of the diagonal matrix $\boldsymbol{D^2}$ are simply the squares of the singular values $\bmu$. However, there are several reasons why the diagnostics is performed on $\boldsymbol{E}$ and not on $\boldsymbol{E^\top E}$ but the strongest is, that the singular value decomposition is numerically more stable especially when $\boldsymbol{E}$ is ill-conditioned, which means the inverse does not or almost not exist. As this is exactly the situation of our interest, employing the singular decomposition method is in our context more applicable.
+
+% %%%%%%%%%%%%
+\subsection{Variance decomposition proportions}
+% %%%%%%%%%%%%
+To determine which variables are involved in collinearity scenarios, \cite{Belsley1991} proposed a further diagnostic procedure. The procedure works on decomposing the variance of each estimate into independent components which correspond to the condition indices. By doing this, one can figure out how near dependencies are causing blown-up variances in terms of being responsible for a considerable high proportion thereof. The decomposition starts with the variance of the least-squares estimator when the design matrix is equilibrated, which is denoted by $\hb$:
+\begin{align*}
+\var\left(\hb\right)
+&=\sigma^2\left(\boldsymbol{E^\top E}\right)^{-1}=\sigma^2\left(\bV\bD^2\bV^\top\right)^{-1}=\sigma^2\left(\bV^\top\right)^{-1}\bD^{-2}\bV^{-1}\\
+&=\sigma^2\bV\bD^{-2}\bV^\top
+\end{align*}
+Now focusing on getting the variance for one specific estimate $\hat\b[j]$, this can be expressed as
+\begin{align*}
+\var\left(\hb\right)
+&=\sigma^2\sum_{i=1}^{p}\frac{\left(\bV[j,i]\right)^2}{\bD^2[i,i]}
+\end{align*}
+and the variance-decomposition proportions are then
+\begin{align*}
+\bPi[k,j]=\frac{\frac{\left(\bV[j,k]\right)^2}{\bD^2[k,k]}}{\sum_{i=1}^{p}\frac{\left(\bV[j,i]\right)^2}{\bD^2[i,i]}},\qquad j,k=1,\dots,p
+\end{align*}
+This means then that in the variance-decomposition matrix $\bPi$ each column $j$ corresponds to a specific variable and each row $k$ corresponds to a certain condition index which are typically sorted with increasing order. $\bPi$ is then studied row-wise and one should look out for the case where two or more variables have large variance-decomposition proportions associated with the same condition index. The computation of the matrix can be easily done with the \texttt{Collinearity} package \citep{Collinearity}.
+
+% %%%%%%%%%%%%
+\subsection{Why the condition number?}
+% %%%%%%%%%%%%
+
+Actually, we only want to know what the inverse of $\boldsymbol{X^\top X}$ does to our results since there are conditions leading to a non- or almost non-existence of the inverse. Thus, what we mean with \textit{ill-conditioned} is \textit{the inverse does almost not exist} or \textit{almost not of full rank}. This is also what is meant with a small determinant of $\boldsymbol{X^\top X}$. But a small determinant has nothing to do with its invertibility because for example a matrix $\boldsymbol{A}=\alpha\boldsymbol{I}\in\R^{n\times n}$ has a determinant of $\alpha^n$ which can be made very small, yet the inverse still exists.
+
+Thus, the magnitude of the determinant as a measure for what we mean with ill-conditioning is misleading. Still, we see that by making $\alpha$ small, $\boldsymbol{A}=\alpha\boldsymbol{I}$ decreases while the inverse blows up $\boldsymbol{A}^{-1}=\frac{1}{\alpha}\boldsymbol{I}$. 
+
+In numerical analysis the condition number is used to show how much the output changes as a result of small changes or errors in the input. Thus, this can of course also be applied to our problem. \cite{Belsley1991} showed that for an inexact system of linear equations, such as it is in the (equilibrated) least-squares setup $\boldsymbol{Eb}\approx \boldsymbol{y}$, one can study the sensitivity of the solution $\boldsymbol{b}$ to perturbations with the following formula:
+\begin{align}
+\frac{\|\delta\boldsymbol{b}\|}{\|\boldsymbol{b}\|}&\leq \kappa\left(\boldsymbol{E}\right)\bR^{-1}\left[2+\left(1-\bR^2\right)^{1/2}\kappa\left(\boldsymbol{E}\right)\right]\nu+O\left(\nu^2\right) 
+\label{eq:cond_nu}
+\end{align}
+ where $\nu=\text{max}\left(\|\delta \y\|/\| \y\|, \|\delta \boldsymbol{E}\|/\| \boldsymbol{E}\| \right)$ and the introduced perturbation in $\y$ or $\boldsymbol{E}$ is denoted by $\delta\y$ respectively $\delta\boldsymbol{E}$. The term $O\left(\nu^2\right)$ describes the error term of the equation as it is derived over a Taylor approximation. Further details about the derivation can be found in \cite{golub1983matrix}. 
+
+What Equation~\eqref{eq:cond_nu} tells us is that the condition number is a \textit{conservative} indicator of the potential sensitivity of the solution of inexact equations. It also includes the strength of the linear relation between $\boldsymbol{y}$ and $\boldsymbol{E}$ described by $\bR$ (see Section~\ref{sec:rsquared}) and says that the looser it is, the higher the sensitivity to perturbations even with well-conditioned data.
+
+
+% %%%%%%%%%%%%
+\subsection{An example}\label{sec:example}
+% %%%%%%%%%%%%
+
+<<echo = F>>=
+set.seed(432324)
+# true parameters
+n <- 50
+eps_y <- rnorm(n)
+s_y <-  1
+beta <- c(4,2,2)
+boot <- 10
+r1 <- 0.995
+r2 <- 0.0
+@
+
+Figure~\ref{fig:cond_ill} illustrates what a high and low condition number means in terms of model fitting. Both plots show data that is constructed by a simple equation
+\begin{align}
+\y=\Sexpr{beta[1]}+\Sexpr{beta[2]}\cdot\X[,1]+\Sexpr{beta[3]}\cdot\X[,2]+\boldsymbol{\varepsilon}\cdot \sigma \label{eq:simplemodel}
+\end{align}
+where the explanatory variables within $\X$ are $n=\Sexpr{n}$ realizations of a multivariate normal distribution as 
+$$X[i,]\sim\N\left(\mu = \begin{pmatrix} 0 \\ 0 \end{pmatrix}, \Sigma = \begin{pmatrix} \rho & 0 \\ 0&\rho \end{pmatrix}\right)$$
+
+\begin{figure}[H]%H is strict!
+\centering
+<<cond,fig.height = 3, fig.width=6,echo=FALSE, eval=T, message=FALSE, warning=FALSE, dev='pdf'>>=
+#library("scatterplot3d"); library(scales); library(mvtnorm);library(Collinearity);library(RColorBrewer)
+cols <- brewer.pal(9, "YlOrRd")
+colfunc <- colorRampPalette(c("red","yellow", "blue"))
+cols <- colfunc(12)
+#cols <- terrain.colors(10)
+
+par(mfcol = c(1,2))
+# High collinearity
+set.seed(4324)
+X <- mvtnorm::rmvnorm(n=n, mean = c(0,0), sigma = matrix(c(1, r1,r1,1),ncol=2, byrow = T))
+colnames(X) <- c("x1","x2")
+vdm1 <- Collinearity::Var_decom_mat.matrix(cbind("const"=1,"X"=X))
+cond_nu1 <- max(vdm1[,"cond_ind"])
+cond_nu10 <- max(Collinearity::Var_decom_mat.matrix(X)[,"cond_ind"])
+x1 <- X[,1]; x2 <- X[,2]
+y <- beta[1] + x1*beta[2] +x2*beta[3] + eps_y*s_y
+dd1 <- data.frame("y"=y, "x1"=x1, "x2"=x2)
+m1 <- lm(data = dd1, y ~ x1+x2)
+
+#par(mfcol = c(1,1))
+min_z <- -10; max_z <- 15
+s3d <- scatterplot3d(x=x1,y=x2,z=y,type ="h",pch = 19, angle = 55, scale.y = 0.6,zlim = c(min_z,max_z),ylim = c(-3,3),
+                     ,mar = c(3,3,2,2),
+			main = bquote(rho==.(r1)~","~kappa(bold(E) )==~.(cond_nu1) ),cex.lab = 0.8,cex.axis = 0.8,cex.main=0.8,
+		zlab=expression(bold(y)),xlab=expression(bold(X)~"[1]"), ylab=expression(bold(X)~"[,2]"))
+set.seed(4324)
+for(i in 1:boot){
+	m_current <- lm(data = dd1[sample(1:nrow(dd1), nrow(dd1), replace = T),], y ~ x1+x2)
+	s3d$plane3d(m_current,draw_lines = F,draw_polygon = T,polygon_args = list(border = NA, col = alpha(cols[i], 0.1) ))
+	s3d$plane3d(m_current,draw_lines = T,lty.box = "solid", lty = "blank",col = cols[i],lwd = 2)
+}
+s3d$points3d(x=x1,y=x2,z=rep(min_z,n),pch = 1)
+
+# Low collinearity
+set.seed(4324)
+X <- mvtnorm::rmvnorm(n=n, mean = c(0,0), sigma = matrix(c(1, r2,r2,1),ncol=2, byrow = T))
+colnames(X) <- c("x1","x2")
+vdm2 <- Collinearity::Var_decom_mat.matrix(cbind("const"=1,"X"=X))
+cond_nu2 <- max(vdm2[,"cond_ind"])
+cond_nu20 <- max(Collinearity::Var_decom_mat.matrix(X)[,"cond_ind"])
+x1 <- X[,1]; x2 <- X[,2]
+y <- beta[1] + x1*beta[2] +x2*beta[3] + eps_y*s_y
+dd2 <- data.frame("y"=y, "x1"=x1, "x2"=x2)
+m2 <- lm(data = dd2, y ~ x1+x2)
+
+s3d <- scatterplot3d(x=x1,y=x2,z=y,type ="h",pch = 19, angle = 55, scale.y = 0.6,zlim = c(min_z,max_z),mar = c(3,3,2,2),ylim = c(-3,3),
+		main = bquote(rho==.(r2)~","~kappa(bold(E) )==~.(cond_nu2) ),cex.lab = 0.8,cex.axis = 0.8,cex.main=0.8,
+		zlab=expression(bold(y)),xlab=expression(bold(X)~"[1]"), ylab=expression(bold(X)~"[,2]"))
+set.seed(4324)
+for(i in 1:boot){
+	m_current <- lm(data = dd2[sample(1:nrow(dd2), nrow(dd2), replace = T),], y ~ x1+x2)
+	s3d$plane3d(m_current,draw_lines = F,draw_polygon = T,polygon_args = list(border = NA, col = alpha(cols[i], 0.1) ))
+	s3d$plane3d(m_current,draw_lines = T,lty.box = "solid", lty = "blank",col = cols[i],lwd = 2)
+}
+s3d$points3d(x=x1,y=x2,z=rep(min_z,n),pch = 1)
+@
+\vspace{-7mm}
+\caption{Impact of collinearity on the instability of estimates. }\label{fig:cond_ill}
+\end{figure}
+%\vspace{-5mm}
+This allows to tune the amount of collinearity within the system by specifying $\rho$. On the left plot it is chosen to be high with $\rho=\Sexpr{r1}$ and on the right side low with $\rho=\Sexpr{r2}$. By bootstrapping the original sample \Sexpr{boot} times and subsequent model fitting we can visualize the instability that collinearity causes. Because when we plot the planes that represent the area where the models would see $\hy=\hat{\alpha}+\hbbeta[1]\X[,1]+\hbbeta[2]\X[,2]$ we note on the left side with high collinearity ($\kappa\left(\boldsymbol{E}\right)=\Sexpr{cond_nu1}$) that the planes are quite different from each other, whereas on the right side ($\kappa\left(\boldsymbol{E}\right)=\Sexpr{cond_nu2}$) they seem to be very similar and thus stable. Table~\ref{tab:vdm1} shows the corresponding variance decomposition proportion matrices $\bPi$ and the least-squares model results of the original data sets.
+\begin{table}[H]
+\caption{Variance decomposition matrices as introduced by Belsley in the first row and summary output of the multiple linear regression models on the second row. Left side corresponds to the example with higher collinearity and the right table for the lower.}\label{tab:vdm1}
+\begin{subtable}[h]{0.45\textwidth}
+\centering
+<<vdm1, results = "asis", echo = FALSE, warning=FALSE,message=F>>=
+#library(tableone);library(xtable); library(stringr); library(dplyr)
+colnames(vdm1) <- str_replace(colnames(vdm1) , "\\^",  "\\\\textasciicircum " )
+colnames(vdm1) <- str_replace(colnames(vdm1) , "\\_",  "\\\\_" )
+colnames(vdm1)[4:5] <- c("\\textbf{\\textit{X}}[,1]","\\textbf{\\textit{X}}[,2]")
+xtab <- xtable( vdm1)
+digits(xtab) <- 3
+print(xtab, showAllLevels = TRUE, booktabs = TRUE,size = "footnotesize",
+      include.rownames=FALSE,include.colnames=TRUE, printToggle = FALSE, noSpaces = TRUE, floating = FALSE,
+      hline.after = c(-1,0,nrow(xtab)),
+      sanitize.text.function=function(x){x})
+
+@
+\end{subtable}
+\begin{subtable}[h]{0.45\textwidth}
+\centering
+<<vdm2, results = "asis", echo = FALSE, warning=FALSE,message=F>>=
+vdm1 <- vdm2
+colnames(vdm1) <- str_replace(colnames(vdm1) , "\\^",  "\\\\textasciicircum " )
+colnames(vdm1) <- str_replace(colnames(vdm1) , "\\_",  "\\\\_" )
+colnames(vdm1)[4:5] <- c("\\textbf{\\textit{X}}[,1]","\\textbf{\\textit{X}}[,2]")
+xtab <- xtable( vdm1)
+digits(xtab) <- 3
+print(xtab, showAllLevels = TRUE, booktabs = TRUE,size = "footnotesize",
+      include.rownames=FALSE,include.colnames=TRUE, printToggle = FALSE, noSpaces = TRUE, floating = FALSE,
+      hline.after = c(-1,0,nrow(xtab)),
+      sanitize.text.function=function(x){x})
+
+@
+\end{subtable}
+%\end{table}
+\centering
+\begin{subtable}[h]{0.45\textwidth}
+\vspace{0.2cm}
+<<m1_example, results = "asis",echo=FALSE>>=
+#library(biostatUZH);library(xtable)
+tableRegression(m1, stats = c("estimate", "standarderror","t.value", "p.value"),
+                intercept = T,
+                col.nam = c("$\\hat\\beta$", "$\\text{se}\\left(\\hat\\beta\\right)$",
+                            "$t$-value", "$p$-value"),
+                booktabs = TRUE,floating = F)
+
+@
+\end{subtable}
+\centering
+\begin{subtable}[h]{0.45\textwidth}
+\vspace{0.2cm}
+<<m2_example, results = "asis",echo=FALSE>>=
+tableRegression(m2, stats = c("estimate", "standarderror","t.value", "p.value"),
+                intercept = T,
+                col.nam = c("$\\hat\\beta$", "$\\text{se}\\left(\\hat\\beta\\right)$",
+                            "$t$-value", "$p$-value"),
+                booktabs = TRUE,floating = F)
+@
+\end{subtable}
+\end{table}
+
+
+But why going trough all the trouble with collinear variables and the detrimental effects that come with it and not simply drop one or some of the affected variables? Figure~\ref{fig:coll2} visualizes the model fits when the variable $\X[,2]$ is neglected although truly it has very well an effect on $\y$ as is visible in Equation~\eqref{eq:simplemodel}. We see on the right plot for low collinearity the 95\% confidence interval for $\hbbeta[1]$ does cover the true effect of \Sexpr{beta[2]} whereas for the case with high collinearity this seems to be not the case.
+This demonstrates that it is not so easy to simply get rid of some variables as this may introduce bias to some extent.
+
+\begin{figure}[h]%H is strict!
+\centering
+<<coll2,fig.height = 2.5, fig.width=5,echo=FALSE, eval=T, message=FALSE, warning=FALSE, dev='pdf'>>=
+#library(tidyverse)
+dd <- rbind(data.frame(dd1, "r" = paste0("rho==",r1,"~'and'~kappa(bold(E))==",cond_nu1) ),
+            data.frame(dd2, "r" = paste0("rho==",r2,"~'and'~kappa(bold(E))==",cond_nu2) )
+            )
+m1 <- lm(data = dd1, y ~ x1)
+m2 <- lm(data = dd2, y ~ x1)
+
+# Confidence interval
+dd_anno <- rbind(data.frame("label"= paste0("95% CI = [",toString(round(confint(m1)[2,],2)),"]"), 
+                            "r" = paste0("rho==",r1,"~'and'~kappa(bold(E))==",cond_nu1) ),
+                 data.frame("label"= paste0("95% CI = [",toString(round(confint(m2)[2,],2)),"]"),
+                           "r" = paste0("rho==",r2,"~'and'~kappa(bold(E))==",cond_nu2) )
+            )
+
+ggplot(data = dd, aes(x = x1, y = y))+
+  geom_point()+
+  geom_smooth(method = "lm",se = FALSE,col = "black")+
+  facet_wrap(.~r,labeller = label_parsed)+
+  theme_classic()+
+  labs(x = bquote(bold(X)~"[,1]"), y = bquote(bold(y)),title = "Univariate fitted model")+
+  geom_label(data = dd_anno, aes(x = -Inf, y = Inf, label  = label,vjust = 1,hjust = 0),size = 3,fill = alpha("black",0.2))
+@
+\vspace{-5mm}
+\caption{Univariate fitted model (\texttt{y$\sim$x1}) of the same data sets as in Figure~\ref{fig:cond_ill}. The slope of the line represents $\hbbeta[1]$ which would be truly \Sexpr{beta[2]} and the confidence interval thereof is given in the box. Obviously, only the right plot with low collinearity seems to capture the true effect whereas with higher collinearity the estimate is biased.}\label{fig:coll2}
+\end{figure}
+
+
+% %%%%%%%%%%%%
+\newpage
+\subsection{Belsley's experiments}\label{sec:belsleysexperiment}
+% %%%%%%%%%%%%
+To explore what harm collinearity does to the estimating procedure \cite{Belsley1991} created data sets with varying amount of collinearity. He induced collinearity by using a basis data set $\X$ and constructed from this an additional variable $\boldsymbol{w}_i$ with controlled collinearity as follows:
+\begin{align*}
+\boldsymbol{w}_i&=\X\boldsymbol{c} + \boldsymbol{e}_i
+\end{align*}
+where $\boldsymbol{e}_i$ is drawn from a normal distribution with zero mean and variance $\sigma_i^2=10^{-i}s^2_{\X\boldsymbol{c}}$ with $s^2_{\X\boldsymbol{c}}\equiv\var\left({\X\boldsymbol{c}}\right)$.
+He constructed then $i$ data sets as 
+\begin{align*}
+\X\{i\}&=\left[\X,\boldsymbol{w}_i\right],\qquad i=0,\dots,4
+\end{align*}
+For several situations, meaning different bases $\X$, Belsley created 5 data sets with increasing collinearity as the error term gets smaller with $i$. Belsley investigated then the condition indices of the data set but also the correlation between variable $\boldsymbol{w}_i$ with $\hat{\boldsymbol{w}}_i=\X\boldsymbol{c}$ and also performed a regression of $\boldsymbol{w}_i$ on $\X$ which he quantified with an $\bR_{\boldsymbol{w}_i}^2$.
+\cite{Belsley1991}[page 129] concluded from his experiments that condition indices of 15-30 come from underlying near dependencies with an associated correlation of 0.9, which is according to Belsley, considered to be the borderline of tightness in informal econometric practices. 
+Based on these experimental experiences, Belsley established a rule of thumb that a condition index of 30 separates high from low collinearity in regression analysis.
+Although suggested, Belsley strictly advises against using this rule of thumb mechanically.
+Still, the cut-off value of 30 is promoted in various literature for example in \cite{Cohen2013, Hocking2013, Tabachnick2012,Chatterjee2012} but also Wikipedia \citep{wiki_multicoll}. 
+
+% \cite{Draper1998} mentions that defining large is difficult, puts the work of Belsley forward but refers to it for more details and \cite{montgomery} is a bit more conservative by saying that condition numbers over 100 are problematic
+\mycomment{
+Thus coming back to our linear system
+\begin{align*}
+\boldsymbol{X\beta}&=\boldsymbol{y}
+\end{align*}
+A vector $\boldsymbol{\beta}$ that  solves this system \textit{exactly} does rarely exist or may not be unique (\textcolor{red}{why should this not exist?}). But we can introduce the pseudo-inverse $\boldsymbol{X}^+$
+\begin{align}
+\boldsymbol{\beta}&=\boldsymbol{X}^+\boldsymbol{y} \label{eq:2.4}
+\end{align}
+The condition number provides a measure of potential sensitivity to perturbations in $\boldsymbol{y}$ on to the solution vector $\boldsymbol{\beta}$. Thus introducing perturbation in $\boldsymbol{y}$ denoted by $\boldsymbol{\delta y}$ leads to changes in the solution vector
+\begin{align}
+\boldsymbol{\delta \beta}&=\boldsymbol{X}^{+}\boldsymbol{\delta y}\label{eq:2.5}
+\end{align}
+Now, to relatively compare the Equations~\ref{eq:2.4} and \ref{eq:2.5}, so what happens after perturbation, we can characterize matrices by a single number which is called the spectral norm. This gives then:
+\begin{align*}
+||\boldsymbol{\delta \beta}||&\leq||\boldsymbol{X}^{+}||\cdot||\boldsymbol{\delta y}||\\
+||\boldsymbol{y}||&\leq||\boldsymbol{X}||\cdot||\boldsymbol{\beta}||
+\end{align*}
+since for the spectral norm it holds that $||\boldsymbol{X\beta}||\leq||\boldsymbol{X}||\cdot||\boldsymbol{\beta}||
+$. Multiplying these equations gives
+\begin{align}
+\frac{||\boldsymbol{\delta \beta}||}{||\boldsymbol{ \beta}||}&\leq||\boldsymbol{X}||\cdot||\boldsymbol{X}^{+}||\cdot\frac{||\boldsymbol{\delta y}||}{||\boldsymbol{ y}||}
+\end{align}
+Important to see here is that the spectral norm product $||\boldsymbol{X}||\cdot||\boldsymbol{X}^{+}||$ gives a bound of how much the solution vector $\boldsymbol{\beta}$ can relatively change as an effect of relative changes in $\boldsymbol{y}$.
+
+Thus the term $||\boldsymbol{X}||\cdot||\boldsymbol{X}^{+}||$ is handy and gets its own name: the condition number denoted by $\kappa(\boldsymbol{X})$. Since $||\boldsymbol{X}||=\mu_\text{max}$ and $||\boldsymbol{X}^{+}||=1/\mu_\text{min}$ (\textcolor{red}{Proof?}) we have shown the condition number to be
+\begin{align*}
+\kappa(\boldsymbol{X})=\frac{\mu_\text{max}}{\mu_\text{min}}\geq 1
+\end{align*}
+This shows that the condition number as a quantification of collinearity should provide a useful measure.
+
+
+
+"Also provides a measure of the distance of a matrix from singularity (or exact collinearity)"
+
+
+\color{red}
+\textit{
+However, it is still true that different column scalings of the same X matrix can result in different singular values and, hence, cause the collinearity diagnostics to tell different stories about the conditioning of what are, from a practical point of view, essentially equivalent data sets
+}
+
+This needs polishing!!!
+\begin{align*}
+\text{Normal equation:}&\\
+\left(A^\top A\right)x &= Ab\\
+\text{with perturbation }&E=\delta A/\epsilon, f=\delta b/\epsilon, \text{where }\epsilon=\max\left[\frac{\|\delta A\|_2}{\|A\|_2},\frac{\|\delta b\|_2}{\|b\|_2}\right]\\
+\left(A+tE\right)^\top \left(A+tE\right)x(t) &= \left(A+tE\right)^\top\left(b+tf\right)\\
+\end{align*}
+So what happens to $x(t)$, which is a function, if the worst perturbation happens $x(t=\epsilon)$? We can approximate it via Taylor approximation:
+\begin{align*}
+x(\epsilon)&=x(t=0)+x'(t=0)(\epsilon -0)+O\\
+x(\epsilon)-x(0)&=\epsilon x'(0)+O\\
+\frac{\|x(\epsilon)-x(0)\|}{\|x(0)\|}&=\epsilon \frac{\|x'(0)\|}{\|x(0)\|}+\frac{\|O\|}{\|x(0)\|}\\
+\end{align*}
+But what is $\|x'(0)\|$ or even $x'(0)$? To determine this, we take derivative of ?? with respect to $t$ and set it then to zero.
+\begin{align*}
+\left(A+tE\right)^\top \left(A+tE\right)x(t) \frac{d}{dt}&= \left(A+tE\right)^\top\left(b+tf\right)\frac{d}{dt}\\
+&=C(b+ft)\\
+&=???\\
+E^\top Ax(t=0)+A^\top E x(t=0)+ A^\top A x'(t=0)&=A^\top f+E^\top b\\
+x'(t=0)&=\left(A^\top A\right)^{-1} \left(A^\top f+E^\top b-E^\top Ax(t=0) - A^\top E x(t=0) \right)\\
+&=\left(A^\top A\right)^{-1} \left(A^\top \left[f-E x(t=0)\right]+E^\top\left[b-Ax(t=0)\right] \right)\\
+x'(t=0)&=\left(A^\top A\right)^{-1}A^\top \left[f-E x(t=0)\right]+\left(A^\top A\right)^{-1} E^\top r
+\end{align*}
+
+The 2-norm is then.
+\begin{align*}
+\|x'(t=0)\|&=\|\left(A^\top A\right)^{-1}A^\top \cdot \left[f-E x(t=0)\right]+\left(A^\top A\right)^{-1} E^\top r\|\\
+&\leq \|\left(A^\top A\right)^{-1}A^\top\left[f-E x(t=0)\right]\|+\|\left(A^\top A\right)^{-1} E^\top r\|\\
+&\leq \|\left(A^\top A\right)^{-1}A^\top\left[\frac{\delta b}{\epsilon}-\frac{\delta A}{\epsilon} x(t=0)\right]\|+\|\left(A^\top A\right)^{-1} \left(\frac{\delta A}{\epsilon}\right)^\top r\|\\
+\end{align*}
+
+
+\begin{align}
+\frac{||\delta x||}{||x||}&\leq\kappa(A)^2\frac{||\delta A||}{||A||}\text{tan}(\theta)+\kappa(A)\frac{||\delta b||}{||b||}\frac{1}{\text{cos}(\theta)}+\kappa(A)\frac{||\delta A||}{||A||}
+\end{align}
+$tan(x)=\pm \frac{\sqrt{1-cos^2(x)}}{cos(x)}$
+
+% https://twiki.cern.ch/twiki/pub/Main/AVFedotovHowToRootTDecompQRH/Golub_VanLoan.Matr_comp_3ed.pdf  5.3
+% https://www.cs.cornell.edu/courses/cs6210/2019fa/schedule.html
+% Belsley p.54
+\color{black}
+ill-conditioning: small changes result in large differences
+
+$A\in \R^{m\times n}$, $x\in \R^{ n\times 1}$ and $b\in \R^{ m\times 1}$ with $m>n$ (overdetermined system) $y\in \R^{ m\times 1}$ as approximation to $b$
+\begin{align}
+Ax &= b\\
+min_x\|b-Ax\|
+\end{align}
+
+$\kappa(A)=\|A\|\cdot \|A^+\|=\frac{\sigma_1}{\sigma_n}$
+}
+% https://www.youtube.com/watch?v=EVzhN300sXI
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\newpage
+\section{Differences between \texttt{lm} and \texttt{tram::Lm}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+The parametrization and the chosen estimation approaches differ between \texttt{lm} and 
+\texttt{tram::Lm} and in this section we are going to compare what these differences mean from a theoretical perspective.
+
+% %%%%%%%%%%%%
+\subsection{Maximum-Likelihood estimation for the linear regression model}\label{sec:mlnlm}
+% %%%%%%%%%%%%
+
+We can show that independent of the estimating procedure, with the parametrization as specified in Equation \eqref{eq:lspara} we will end up at the very same optimization problem if we go over the profile likelihood.
+The approximate log-likelihood of a sample that is treated as exact (see Appendix~\ref{sec:approxlikelihood} for more details) is
+\begin{align}
+\ell(\boldsymbol{\beta},\sigma|\y)&=-N\log\left(\sigma\right)-\frac{N}{2}\log\left(2\pi\right)-\frac{1}{2}\sum_{i=1}^N\left(-\frac{\alpha}{\sigma}+\frac{1}{\sigma} \y[i]-\boldsymbol{\tilde{X}}[i,]\frac{\boldsymbol{\tilde\beta}}{\sigma}\right)^2 \nonumber\\
+&=-N\log\left(\sigma\right)-\frac{N}{2}\log\left(2\pi\right)-\frac{1}{2\sigma^2}\sum_{i=1}^N\left(\y[i]-\alpha-\boldsymbol{\tilde{X}}[i,]\boldsymbol{\tilde\beta}\right)^2 \nonumber\\
+&=-N\log\left(\sigma\right)-\frac{N}{2}\log\left(2\pi\right)-\frac{1}{2\sigma^2}\left(\y-\X\bbeta\right)^\top\left(\y-\X\bbeta\right) \label{eq:ll_ls}
+\end{align}
+We can now employ the profile likelihood where we treat $\sigma$ as the nuisance parameter:
+\begin{align*}
+\frac{d\ell(\boldsymbol{\beta},\sigma|\y)}{d\sigma}\Big|_{\hat\sigma}=-N\sigma^{-1}+\hat\sigma^{-3}\left(\boldsymbol{y}-\boldsymbol{X\beta}\right)^\top\left(\boldsymbol{y}-\boldsymbol{X\beta}\right)&\stackrel{!}{=}0 \\
+\hat\sigma^{-3}\left(\boldsymbol{y}-\boldsymbol{X\beta}\right)^\top\left(\boldsymbol{y}-\boldsymbol{X\beta}\right)&\stackrel{!}{=}N\hat\sigma^{-1}\\
+\hat\sigma^2&\stackrel{!}{=}\left(\boldsymbol{y}-\boldsymbol{X\beta}\right)^\top\left(\boldsymbol{y}-\boldsymbol{X\beta}\right)/N
+\end{align*}
+Plugging $\hat\sigma$ into \eqref{eq:ll_ls}, we see that $\hat\sigma$ vanishes from the equation which is handy:
+\begin{align*}
+\frac{d\ell(\boldsymbol{\beta},\hat\sigma|\y)}{d\boldsymbol{\beta}}\Big|_{\hbbeta}=-N\log\left(\left(\boldsymbol{y}-\boldsymbol{X\beta}\right)^\top\left(\boldsymbol{y}-\boldsymbol{X\beta}\right)\right)\frac{d}{d\boldsymbol{\beta}}\Big|_{\hbbeta}&\stackrel{!}{=}0\\
+\log\left(\left(\boldsymbol{y}-\boldsymbol{X\beta}\right)^\top\left(\boldsymbol{y}-\boldsymbol{X\beta}\right)\right)\frac{d}{d\boldsymbol{\beta}}\Big|_{\hbbeta}&\stackrel{!}{=}0
+\end{align*}
+Since the log is a monotone function, the maximum likelihood is also found by minimizing the term $\left(\boldsymbol{y}-\boldsymbol{X\beta}\right)^\top\left(\boldsymbol{y}-\boldsymbol{X\beta}\right)$ with respect to $\boldsymbol{\beta}$ and thus the maximum-likelihood estimator $\boldsymbol{\hat\beta}$ is the very same as for the least-squares estimator described in Equation~\eqref{eq:lse}.
+
+
+% %%%%%%%%%%%%
+\subsection{Maximum-Likelihood estimation for the transformation model equivalent (\texttt{tram::Lm})}\label{sec:mltramLM}
+% %%%%%%%%%%%%
+
+The approximate log-likelihood with the parametrization used for the \texttt{tram::Lm} model specified in Equation~\eqref{eq:ll_trans} is
+\begin{align}
+\ell(\bbeta_\text{tram},\theta_0,\theta_1|\y)&=+N\log(\theta_1)-\frac{N}{2}\log\left(2\pi\right)-\frac{1}{2}\sum_{i=1}^N\left(\theta_0+\theta_1 \y[i]-\boldsymbol{\tilde{X}}[i,]\bbeta_\text{tram}\right)^2
+\label{eq:ll_tramLm}
+\end{align}
+which has one parameter ($\theta_1$) more to simultaneously estimate.
+
+The design matrix in this setup is different. For \texttt{lm}, $\X$ contained the variables that will be used to explain the outcome $\y$. But this can also be reformulated in terms of using the \textit{variables including the outcome} to explain the  \textit{error} $\bvarepsilon[i]\sim \N(0,1)$.
+Since for \texttt{tram::Lm} the parameter $\theta_1$ is attached to the outcome $\y$, the collinearity constellation is not only restricted to the $\X$ space but extends onto $\left[\y,\X\right]$.
+This basically implies that the better the outcome $\y$ is explainable by $\X$, the higher the collinearity and thus the larger the effects caused by it. This is important to keep in mind.
+
+\begin{figure}[h]%H is strict!
+\begin{center}
+<<colllikelihood, fig.height = 3, fig.width = 6,echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE,dev='pdf'>>=
+#library(tidyverse);library(tram)
+set.seed(234324)
+n <- 100
+X <- cbind(rnorm(n =100),rnorm(n =100))
+eps_y <- rnorm(n =100)
+X <- cbind(1,X)
+#beta <- c(2,2,2)#
+beta <- c(10,2,2)
+
+# likelihood for tram
+ll <- function(par,data){
+  return(-sum(dnorm(x = par[1] + par[2]*data$y - data$x1*par[3] - data$x2*par[4],log=TRUE)+log(par[2]) ))
+}
+
+# likelihood for lm
+ll_lm <- function(par,data){
+  return(-sum(
+    dnorm(x = data$y,
+          mean = par[1] + data$x1*par[3] + data$x2*par[4],
+          sd = par[2], 
+          log=TRUE)
+    ))
+}
+
+# naive loop
+res <- c()
+s_y <- seq(from = 0, to = 3, length.out = 101)[-1]
+for(i in 1:length(s_y)){
+  y <- X%*%beta + eps_y*s_y[i]
+  data <- data.frame("y"=y, "x1" = X[,2], "x2"=X[,3])
+  m_lm <- lm(data = data, y~.)
+  m_tram <- tram::Lm(data = data, y~.)
+  
+  ms_tram <- tram::Coxph(Surv(y,rep(1, length(data$y)))~x1+x2,data = data)
+  ms_surv <- survival::coxph(Surv(y,rep(1, length(data$y)))~x1+x2,data = data)
+  
+  #tram likelihood
+  myres <- optim(par = rep(0.1,4),fn = ll, 
+                 method = "BFGS",hessian = TRUE,data = data)
+  est <- myres$par
+  se <- sqrt(diag(solve(myres$hessian)))
+  wald <- est/se
+  
+  # lm likelihood
+  myres_lm <- optim(par = c(10,2,2,2),fn = ll_lm, 
+             method = "BFGS",hessian = TRUE,data = data)
+  est_lm <- myres_lm$par
+  se_lm <- sqrt(diag(solve(myres_lm$hessian)))
+  wald_lm <- est_lm/se_lm
+  
+  
+  res <- rbind(res, 
+  rbind(
+  cbind(c("x1","x2"),wald[3:4],"aoptim_tram",i,s_y[i]),
+  cbind(c("x1","x2"),wald_lm[3:4],"aoptim_lm",i,s_y[i]),
+  cbind(names(coef(m_lm))[2:3],summary(m_lm)$coef[2:3,3],"lm",i,s_y[i]),
+  cbind(names(coef(m_tram)),summary(m_tram)[["test"]][["test"]][["tstat"]],"tram::Lm",i,s_y[i])
+  
+  ,cbind(names(coef(ms_tram)),summary(ms_tram)[["test"]][["test"]][["tstat"]],"ztram::Coxph",i,s_y[i])
+  ,cbind(names(coef(ms_surv)),summary(ms_surv)$coefficients[,"z"],"zsurival::coxph",i,s_y[i])
+  )
+  )
+}
+res <-  data.frame(res)
+colnames(res) <- c("variable", "wald", "method", "id","s_y")
+rownames(res) <- NULL
+res$variable <-  as.factor(res$variable )
+res$method <-  as.factor(res$method)
+res$wald <-  as.numeric(res$wald)
+res$s_y <-  as.numeric(res$s_y)
+res$id <-  as.integer(res$id )
+
+# plotting frame
+ymax <- 20
+res$outlier <- ifelse(res$wald>ymax, 1,0)
+res$wald[res$outlier == 1] <- ymax
+res$size <- ifelse(str_detect(res$method, "aoptim"), 0.2 ,0.1)
+
+#plotting
+res[res$outlier==0,] %>%
+  filter(method != "ztram::Coxph"  & method != "zsurival::coxph")%>%
+ggplot(aes(x = s_y, y = wald,col = method))+
+  geom_line(aes(lwd = size ))+
+  geom_point(data = res[res$outlier==1,] , aes(x = s_y, y = wald,col = method),
+             shape = 17,show.legend = FALSE )+
+  facet_grid(.~variable)+
+  theme_classic()+
+  guides(size = "none" )+
+  labs(y = "Wald statistics", x = expression(s[y])) +
+  scale_color_manual(name = "Method:", 
+                     label = c("optim lm","optim tram::Lm","lm","tram::Lm"),
+                     values=c("#F8766D","#00BA38","#00BFC4",
+                                                "#000000"))+
+  scale_size(range=c(1, 3), guide=FALSE)
+@
+\end{center}
+\caption{Simulating data as $\y=\Sexpr{beta[1]}+\Sexpr{beta[2]}\x_1+\Sexpr{beta[3]}\x_2+s_y\cdot \bvarepsilon$ with $\left(\x_1,\x_2,\bvarepsilon\right)\sim\N_{3n}(0,1),n=\Sexpr{n}$. The scaling factor $s_y$ is iterated on a grid between \Sexpr{min(s_y)} and \Sexpr{max(s_y)} where a low scaling factor means that the outcome $\y$ is well explainable and thus collinearity for \texttt{tram::Lm} is higher. Wald statistics are plotted restricted to have maximum values of \Sexpr{ymax} and points laying above are illustrated as triangles.}
+\label{fig:colllikelihood}
+\end{figure}
+
+Figure~\ref{fig:colllikelihood} illustrates the behavioral difference between \texttt{lm} and \texttt{tram::Lm} for different $s_y$ on the Wald statistics scale. The plot shows that with lower $s_y$, \texttt{tram::Lm} seems to yield increasingly more different Wald statistics than \texttt{lm}. In addition, a model (optim tram::Lm) is fitted by optimizing the likelihood as specified in \eqref{eq:ll_tramLm} with the function \texttt{optim(\dots,method = "BFGS")} to check whether these differences are due to the different parametrization and not because of the setup in the \texttt{tram} package. Since the lines overlay, we concluded that differences arise solely by the chosen parametrization. Furthermore, a model (optim lm) is fitted by optimizing the normal likelihood without applying the profile likelihood and it gets visible that the Wald statistics is very similar to the equivalent parametrization but fitted over the least-squares method.
+
+Whether this behavior has a practical implication is at this point not known but this should simply illustrate that the collinearity composition is more complex for the \texttt{tram::Lm} than the \texttt{lm} method. Still, the proceeding collinearity diagnostics will be all based on the design matrix $\X$ corresponding to the least-squares method.
+
+
+<<colllikelihood_appendix, echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE,results='hide'>>=
+# for appendix (motivation for further research)
+#plotting
+p <- res[res$outlier==0,] %>%
+  ggplot(aes(x = s_y, y = wald,col = method))+
+  geom_line(aes(lwd = size ))+
+  geom_point(data = res[res$outlier==1,] , aes(x = s_y, y = wald,col = method),
+             shape = 17,show.legend = FALSE )+
+  facet_grid(.~variable)+
+  theme_classic()+
+  guides(size = "none" )+
+  labs(y = "Wald statistics", x = expression(s[y])) +
+  scale_color_manual(name = "Method:",
+                     label = c("optim lm","optim tram::Lm","lm","tram::Lm",
+                               "survival::coxph","tram::Coxph"),
+                     values=c("#F8766D","#00BA38","#00BFC4","#000000",
+                              "#CCCCCC","#CC9900"))+
+  scale_size(range=c(1, 3), guide=FALSE)
+ggsave("figure/ch02_figcolllikelihood_appendix.pdf",plot = p)
+
+@
+
+
+

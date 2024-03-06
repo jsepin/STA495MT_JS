@@ -1,0 +1,160 @@
+\documentclass[11pt,a4paper,twoside]{book}
+\input{header.sty}   % packages, layout and standard macros
+
+
+\begin{document}
+\input{title}
+
+<<'main-setup',include=FALSE,purl=FALSE>>=
+library(knitr)
+opts_chunk$set(
+    concordance=TRUE,
+    child.command = 'include',
+    cache=FALSE)# FALSE: then  sometimes problems but faster!
+@
+
+
+\graphicspath{{./figure/}}
+\DeclareGraphicsExtensions{.pdf,.png}
+\setcounter{tocdepth}{2}
+
+\thispagestyle{empty}
+\begin{center}
+  \vspace*{6cm}{\bfseries\Huge
+  Assessment of the detrimental effects\\[5mm] of collinearity in \\[5mm] classical and transformation models
+  }
+  \vfill
+  \rm
+
+  \LARGE
+  Jerome Sepin\\[12mm]
+  
+  \normalsize
+  Version \today
+\end{center}
+\newpage
+\thispagestyle{empty}~
+\newpage
+\pagenumbering{roman}
+
+\chapter*{Acknowledgement}
+I would like to express my sincere gratitude to everyone who has supported me during the completion of this thesis.
+I am particularly grateful to my supervisor, PD Dr. Malgorzata Roos, for her guidance, insightful feedbacks, and unwavering support throughout the research process.
+Without your help and infectious positive mindset, this would have never been possible.
+Moreover, I would like to thank the whole teaching staff of the Biostatistics Master Program for doing their best in teaching statistics and making my time as student, both instructive and inspiring.
+
+\bigskip
+\begin{flushright}
+  Jerome Sepin\\
+  February 2023
+\end{flushright}
+
+
+\thispagestyle{plain}\markboth{Contents}{Contents}
+\tableofcontents
+\setkeys{Gin}{width=.8\textwidth}
+
+\chapter*{Abstract}
+\addtocontents{toc}{\protect \vspace*{13.mm}}
+\addcontentsline{toc}{chapter}{\bfseries{Abstract}}
+\thispagestyle{plain}\markboth{Abstract}{Abstract}
+
+Multiple linear regression techniques are well-established statistical tools that are able to quantify the association between many explanatory variables and one outcome variable in a human-interpretable manner.
+However, many explanatory variables increase the chance of collinearity, which means that one of them is well explainable by linear combinations of others.
+It is well known that collinearity has detrimental impacts on multiple linear regression estimands, thus stimulating research on collinearity.
+For example, Belsley came up with a rule of thumb to detect harmful collinearity, which says that condition indices, and therefore also condition numbers, over 30 indicate consequential collinearity.
+In the meantime, this rule of thumb has been widely advocated so that it seems to be carved in stone.
+Therefore, it is important to design a Monte Carlo simulation to clarify the relevance of this cut-off.
+
+Belsley's rule of thumb applies to the omnipresent statistical workhorse, the least-squares model.
+However, with the rise of computational power, novel transformation models that are able to flexibly transform the outcome have a large impact on the understanding of regression models.
+It is currently not known whether both, least-squares and the transformation model equivalent, react equally to collinearity.
+Thus, it is important to clarify whether collinearity diagnostics procedure developed with least-squares can also be used in transformation models.
+
+Furthermore, it can be expected that the sample size can mitigate the detrimental impact of collinearity, but there are currently no exact rules how to do this.
+Thus, there is a demand for software and well-explained hands-on examples that assist in properly adjusting the study design to account for collinearity.
+
+To address these needs in this master thesis, we designed and conducted a Monte Carlo simulation study where we found no signs of tipping point at Belsley's cut-off value of 30.
+However, we discovered that the degree of collinearity summarized by one condition number impacts the Wald statistics values of both, the least-squares model and the transformation model equivalent.
+We also demonstrated that the Wald statistic values differ in general between the two methods.
+Moreover, we proposed a method for sample size calculation in the least-squares case.
+The methods developed are implemented in open-source \textsf{R} software, which is integrated in the \texttt{Collinearity} package.
+As additional support, we also demonstrated how to apply these methods in a case study using the \texttt{BostonHousing2} data.
+These examples and functions assess the impact of the detrimental effect of collinearity on multiple linear regression estimands and suggest how to improve the sample size to mitigate this detrimental effect.
+
+% \bigskip
+% \begin{flushright}
+%   Jerome Sepin\\
+%   February 2023
+% \end{flushright}
+
+\addtocontents{toc}{\protect \vspace*{10mm}}
+
+\cleardoublepage
+\pagenumbering{arabic}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+<<'child-chapter01', child='chapter01.Rnw'>>=
+@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+<<'child-chapter02', child='chapter02.Rnw'>>=
+@
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+<<'child-chapter03', child='chapter03.Rnw'>>=
+@
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+<<'child-chapter04', child='chapter04.Rnw'>>=
+@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+<<'child-chapter05', child='chapter05.Rnw'>>=
+@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+<<'child-chapter06', child='chapter06.Rnw'>>=
+@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+<<'child-chapter07', child='chapter07.Rnw'>>=
+@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+<<'child-chapter08', child='chapter08.Rnw'>>=
+@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\appendix
+<<'child-chapterA1', child='chapterA1.Rnw'>>=
+@
+
+
+
+\cleardoublepage
+\phantomsection
+\addtocontents{toc}{\protect \vspace*{10mm}}
+\addcontentsline{toc}{chapter}{\bfseries Bibliography}
+
+
+\bibliographystyle{mywiley} 
+\bibliography{biblio}
+
+\cleardoublepage
+
+\end{document}
+

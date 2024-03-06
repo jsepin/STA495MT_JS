@@ -1,0 +1,327 @@
+\documentclass[11pt, a4paper]{article}\usepackage[]{graphicx}\usepackage[]{xcolor}
+% maxwidth is the original width if it is less than linewidth
+% otherwise use linewidth (to make sure the graphics do not exceed the margin)
+\makeatletter
+\def\maxwidth{ %
+  \ifdim\Gin@nat@width>\linewidth
+    \linewidth
+  \else
+    \Gin@nat@width
+  \fi
+}
+\makeatother
+
+\definecolor{fgcolor}{rgb}{0.345, 0.345, 0.345}
+\newcommand{\hlnum}[1]{\textcolor[rgb]{0.686,0.059,0.569}{#1}}%
+\newcommand{\hlstr}[1]{\textcolor[rgb]{0.192,0.494,0.8}{#1}}%
+\newcommand{\hlcom}[1]{\textcolor[rgb]{0.678,0.584,0.686}{\textit{#1}}}%
+\newcommand{\hlopt}[1]{\textcolor[rgb]{0,0,0}{#1}}%
+\newcommand{\hlstd}[1]{\textcolor[rgb]{0.345,0.345,0.345}{#1}}%
+\newcommand{\hlkwa}[1]{\textcolor[rgb]{0.161,0.373,0.58}{\textbf{#1}}}%
+\newcommand{\hlkwb}[1]{\textcolor[rgb]{0.69,0.353,0.396}{#1}}%
+\newcommand{\hlkwc}[1]{\textcolor[rgb]{0.333,0.667,0.333}{#1}}%
+\newcommand{\hlkwd}[1]{\textcolor[rgb]{0.737,0.353,0.396}{\textbf{#1}}}%
+\let\hlipl\hlkwb
+
+\usepackage{framed}
+\makeatletter
+\newenvironment{kframe}{%
+ \def\at@end@of@kframe{}%
+ \ifinner\ifhmode%
+  \def\at@end@of@kframe{\end{minipage}}%
+  \begin{minipage}{\columnwidth}%
+ \fi\fi%
+ \def\FrameCommand##1{\hskip\@totalleftmargin \hskip-\fboxsep
+ \colorbox{shadecolor}{##1}\hskip-\fboxsep
+     % There is no \\@totalrightmargin, so:
+     \hskip-\linewidth \hskip-\@totalleftmargin \hskip\columnwidth}%
+ \MakeFramed {\advance\hsize-\width
+   \@totalleftmargin\z@ \linewidth\hsize
+   \@setminipage}}%
+ {\par\unskip\endMakeFramed%
+ \at@end@of@kframe}
+\makeatother
+
+\definecolor{shadecolor}{rgb}{.97, .97, .97}
+\definecolor{messagecolor}{rgb}{0, 0, 0}
+\definecolor{warningcolor}{rgb}{1, 0, 1}
+\definecolor{errorcolor}{rgb}{1, 0, 0}
+\newenvironment{knitrout}{}{} % an empty environment to be redefined in TeX
+
+\usepackage{alltt}
+\usepackage{geometry}
+\geometry{
+  left=2cm,
+  right=2cm,
+  top=2cm,
+  bottom=2cm,
+}
+\usepackage{amsmath}
+\usepackage{booktabs}
+\usepackage{multicol}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage[latin1]{inputenc}
+\usepackage{tikz}
+\usetikzlibrary{shapes,arrows}
+\usetikzlibrary{arrows.meta}
+\usepackage{varwidth}
+\usetikzlibrary{positioning}
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\begin{document}
+\pagestyle{empty}
+\footnotesize
+
+
+% Load parameters
+
+
+
+\pagebreak
+
+
+
+%%% Simulation visualization
+% Define block styles
+\tikzstyle{decision} = [diamond, draw, fill=blue!20, 
+    text width=4.5em, text badly centered, node distance=3cm, inner sep=0pt]
+\tikzstyle{block} = [rectangle, draw, fill=blue!15, 
+    text width=5em, text centered, rounded corners, minimum height=4em]
+\tikzstyle{dg} = [rectangle, draw, fill=green!15, rounded corners, minimum height=4em]  
+\tikzstyle{line} = [draw, -latex']
+\tikzstyle{cloud} = [draw, ellipse,fill=red!20, node distance=3cm,
+    minimum height=2em]
+\tikzstyle{rect} = [draw, rectangle,fill=orange!80, node distance=3cm,minimum height=2em]
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\tikzstyle{abstract}=[rectangle, draw=black, rounded corners, fill=blue, text centered, anchor=north, text=white, text width=3cm]
+\tikzstyle{comment}=[rectangle, draw=black, rounded corners, text centered, anchor=north, text=black,text width=9cm]
+% \tikzstyle{myarrow}=[->, >=open triangle 90, thick]
+% \tikzstyle{line}=[-, thick]
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\begin{figure}[h]%H is strict!
+%\begin{center} 
+\tikzstyle{every node}=[font=\footnotesize]
+\tikzset{every picture/.style={line width=0.75pt}} %set default line width to 0.75pt        
+\begin{tikzpicture}[x=0.75pt,y=0.75pt,yscale=-1,xscale=1]
+%uncomment if require: \path (0,748); %set diagram left start at 0, and has height of 748
+
+
+% True linear model rectangle
+\draw  [fill=yellow!40  ,fill opacity=1, line width=2] (0,30) -- (450,30) -- (450,90) -- (0,90) -- cycle ;
+\draw (0,30) node [anchor=north west][inner sep=0.75pt]   [align=left] {\textbf{True linear model}};
+%\path [line] (150,90) -- (150,580);
+
+
+% Text Node (Jerome)
+\node [cloud, anchor = center] at (60,60) (X_sym) {$\ \ \ \mathbf{X} \ \ \ $};
+\draw (100,60) node [anchor=center][inner sep=0.75pt]   [align=left] {$ \mathbf{\cdot}$};
+\node [rect, anchor = center] at (130,60) (beta) {$\ \ \ \mathbf{\beta} \ \ \ $};
+\draw (190,60) node [anchor=center][inner sep=0.75pt]   [align=left] {+};
+\node [cloud, anchor = center,fill=gray!10] at (250,60) (coll) {$\ \ \ \boldsymbol{\varepsilon _{y}} \ \ \ $};
+\draw (290,60) node [anchor=center][inner sep=0.75pt]   [align=left] {$ \mathbf{\cdot}$};
+\node [rect, anchor = center,fill=gray!10] at (320,60) (coll) {$\ \ \ s_{y} \ \ \ $};
+\draw (360,60) node [anchor=center][inner sep=0.75pt]   [align=left] {=};
+\node [cloud, anchor = center,fill = yellow!20] at (405,60) (coll) {$\ \ \ \boldsymbol{y} \ \ \ $};
+
+% Conclusions
+\node [rect, anchor = west,fill = yellow!20] at (470,60) (conclusion) {\begin{varwidth}{\linewidth}
+\textbf{Conclusions}
+\end{varwidth}};
+
+% Design Matrix (Inducing Collinearity)
+\node [dg, anchor = south west,fill=red!20] at (0,20) (X) {\begin{varwidth}{\linewidth}
+\textbf{Design Matrix (Collinearity):}
+\begin{itemize}[leftmargin=10pt]
+  \item \texttt{rho<-tanh(seq(\\
+  from=-1.8,to=0,\\
+  length.out=20))}
+  \item \texttt{n\_obs<-c(5, 31, 400)}
+  \item Distribution of $\boldsymbol{X}$ (normal)\\ 
+        \texttt{
+        X<-mvtnorm::rmvnorm(\dots)
+        }
+  \item \texttt{mean\_x1<-0.6; mean\_x2<-3.8}
+  \item \texttt{sd\_x1<-0.1; sd\_x2<-2.1}
+  \item Number of simulations $B$\texttt{<-1211}
+  \end{itemize}\end{varwidth}
+};
+
+% Aim
+\node [rect, anchor = north west,fill = red!70, line width= 0.8 mm] at (210,-160) (aim) {\begin{varwidth}{\linewidth}
+\textbf{Aim:}\\ How does collinearity influence the output\\($\boldsymbol{\hat{t},\hat\beta, \text{se}(\hat\beta)}$,power) of \texttt{lm}, \texttt{tram::Lm} ?
+\end{varwidth}};
+
+% Regression
+\node [dg, anchor = south west,fill=orange!80] at (210,20) (regression) {\begin{varwidth}{\linewidth}
+\textbf{Regression parameters:}
+\begin{itemize}[leftmargin=10pt]
+  \item \texttt{beta\_0<-c(51.4)}
+  \item \texttt{beta\_1<-c(-46.1, 0)}
+  \item \texttt{beta\_2<-c(-0.9, 0)}
+  \end{itemize}\end{varwidth}
+};
+
+% Noise
+\node [dg, anchor = south west,fill=gray!10] at (375,20) (regression) {\begin{varwidth}{\linewidth}
+\textbf{Noise parameters:}
+\begin{itemize}[leftmargin=10pt]
+  \item \texttt{set.seed(\dots)}
+  \item \texttt{eps\_y<-rnorm(0,1,n=n\_obs)}
+  \item \texttt{s\_y<-c(2, 5, 8.2)}
+  \end{itemize}\end{varwidth}
+};
+
+%%%%%%%%%%%%%%%%%% underneath %%%%%%%%%%%%%%%%%%%
+
+
+% Data-Generating-Process
+\node (dgp) [comment, rectangle split, rectangle split parts=3, rectangle split part fill={white,red!20,yellow!20}, text justified, anchor = north west] at (0,110)
+    {
+        \textbf{Data-Generating-Process:}\\
+        \texttt{
+        for(k in 1:B)\{\\
+        \hspace*{1mm} for(i in 1:nrow(experimental\_factors))\{\\
+        \hspace*{1mm} \hspace*{1mm} X<-mvtnorm::rmvnorm(n = n\_obs[i],\\
+        \hspace*{1mm} \hspace*{1mm} \hspace*{1mm} mean = c(mean\_x1,mean\_x2),\\
+        \hspace*{1mm} \hspace*{1mm} \hspace*{1mm} sigma = matrix(c(\\
+        \hspace*{1mm} \hspace*{1mm} \hspace*{1mm} sd\_x1\textasciicircum 2, rho[i]*sd\_x1*sd\_x2,\\
+        \hspace*{1mm} \hspace*{1mm} \hspace*{1mm} rho[i]*sd\_x1*sd\_x2, sd\_x2\textasciicircum 2\\
+        \hspace*{1mm} \hspace*{1mm} \hspace*{1mm} ), ncol = 2))\\
+        \hspace*{1mm} \hspace*{1mm} X<-cbind(1,X)
+        }
+        \nodepart{second}
+        \texttt{\hspace*{1mm} \hspace*{1mm}cond\_nu<-max(\\
+        \hspace*{1mm} \hspace*{1mm}\hspace*{1mm} Collinearity::Var\_decom\_mat(X)[,"cond\_ind"])}\\
+        \texttt{\hspace*{1mm} \hspace*{1mm}E<-Collinearity::equilibrate\_matrix(X)}\\
+        \texttt{\hspace*{1mm} \hspace*{1mm}trouble<-diag(solve(t(E)\%*\%E))}
+        
+        \nodepart{third}
+        \texttt{
+        \hspace*{1mm} \hspace*{-1mm} eps\_y<-rnorm(0,1,n=n\_obs[i])\\
+        \hspace*{1mm} \hspace*{1mm} y<-X\%*\%c(beta\_0[i],beta\_1[i],beta\_2[i])+eps\_y*s\_y[i]\\
+        \hspace*{1mm} \hspace*{1mm} df\_list[[length(df\_list)+1]]<-data.frame(y,X[,-1])\\
+        \hspace*{1mm} \}\\
+        \}
+        }
+        
+  };
+
+
+% Experimental factors
+\node [rect, fill=white!10, below = 20 of dgp.south west, anchor = north west] (expfact) {\begin{varwidth}{\linewidth}
+\textbf{Experimental factors (full factorial):}\\
+\texttt{experimental\_factors<-expand.grid(\dots)}\\
+\scalebox{0.9}{
+% latex table generated in R 4.2.2 by xtable 1.8-4 package
+% Tue Jan 17 20:52:38 2023
+\begin{tabular}{lllllll}
+  \toprule
+id & n\_obs & rho & beta\_0 & beta\_1 & beta\_2 & s\_y \\ 
+  \midrule
+1 & 5 & -0.9 & 51.4 & -46.1 & -0.9 & 8.2 \\ 
+  1212 & 31 & -0.9 & 51.4 & -46.1 & -0.9 & 8.2 \\ 
+  ... & ... & ... & ... & ... & ... & ... \\ 
+  301540 & 5 & -0.9 & 51.4 & -46.1 & -0.9 & 2 \\ 
+  ... & ... & ... & ... & ... & ... & ... \\ 
+  870710 & 400 & 0 & 51.4 & 0 & 0 & 5 \\ 
+  ... & ... & ... & ... & ... & ... & ... \\ 
+  871920 & 400 & 0 & 51.4 & 0 & 0 & 5 \\ 
+   \bottomrule
+\end{tabular}
+
+}
+\end{varwidth}
+};
+
+
+% Estimands
+\node [rect, fill=white!10, right = 50 of expfact.north east, anchor = north west] (estimands) {\begin{varwidth}{\linewidth}
+\textbf{Estimands:}\\
+\textcolor{white}{\texttt{exp}}\\
+\scalebox{0.9}{
+% latex table generated in R 4.2.2 by xtable 1.8-4 package
+% Tue Jan 17 20:52:38 2023
+\begin{tabular}{lllll}
+  \toprule
+hbeta\_0 & se\_0 & t\_0 & ... & cond\_nu \\ 
+  \midrule
+-13 & 366.3 & 0 & ... & 122.1 \\ 
+  9.1 & 64.6 & 0.1 & ... & 69.1 \\ 
+  ... & ... & ... & ... & ... \\ 
+  -51.1 & 21.1 & -2.4 & ... & 26.5 \\ 
+  ... & ... & ... & ... & ... \\ 
+  0 & 2.7 & 0 & ... & 15.5 \\ 
+  ... & ... & ... & ... & ... \\ 
+  -2.7 & 2.2 & -1.2 & ... & 13.8 \\ 
+   \bottomrule
+\end{tabular}
+
+}
+\end{varwidth}
+};
+
+
+% Estimand-Generating-Process:
+\node [dg, below = 30 of estimands.south east, anchor = north east] (egp) {\begin{varwidth}{\linewidth}
+\textbf{Estimand-Generating-Process:}\\
+\texttt{
+\# paired design\\
+m<-lm(data,y$\sim$x1+x2)\\
+m<-tram::Lm(data,y$\sim$x1+x2)
+    }
+\end{varwidth}
+};
+
+% Simulated Data sets
+\node [rect,fill = white, below = 20 of expfact.south, anchor = north] (sim_data3) {\color{white}\begin{varwidth}{\linewidth}Simulated Data\\
+(n = 871920)\\ \texttt{df\_list[[1]]}\end{varwidth}};
+\node [rect,fill = white, below left = 10 and 10 of sim_data3.north , anchor = north] (sim_data2) {\color{white}\begin{varwidth}{\linewidth}Simulated Data\\
+(n = 871920)\\ \texttt{df\_list[[1]]}\end{varwidth}};
+\node [rect,fill = white, below left = 10 and 10 of sim_data2.north , anchor = north] (sim_data1) {\begin{varwidth}{\linewidth}Simulated Data\\
+(n = 871920)\\ \texttt{df\_list[[1]]}\end{varwidth}};
+
+% Performance Evaluation
+\node [rect,fill = white!20, above = 20 of estimands.north east, anchor = south east] (PE) {\begin{varwidth}{\linewidth}
+\textbf{Performance Evaluation:}\\
+Metrics:
+\begin{itemize}[leftmargin=10pt]
+\item Wald statistics $\boldsymbol{\hat{t}}$
+\item Bias $\boldsymbol{\hat{\beta}-\beta}$
+\item Relative Bias $\left(\boldsymbol{\hat{\beta}-\beta}\right)/\boldsymbol{\beta}$
+\item Empirical standard error $\text{se}\left(\boldsymbol{\hat{\beta}}\right)$
+\item Proportion of $p$-values $\leq\alpha$ (Power)
+\end{itemize}
+Figures:
+\begin{itemize}[leftmargin=10pt]
+\item Trace plots with quantiles
+\item Spatial plots
+\end{itemize}
+\end{varwidth}
+} ;
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% Edges
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\path [line] (X_sym |- 0,90) -- (dgp.north-|X_sym.south);
+\path [line] (beta.south) -- +(0,+25) -| (PE.north-|egp);
+\path [line] (dgp.south) -- (dgp|-expfact.north);
+\path [line] (sim_data1|-expfact.south) -- (sim_data1.north);
+\path [line] (sim_data1.east) -- (sim_data1-|egp.west);
+\path [line] (egp.north-|egp) -- (estimands.south-|egp);
+\path [line] (estimands.north-|egp) -- (PE.south-|egp);
+\path [line] (PE.north-|conclusion.south) -| (conclusion.south);
+\path [line] (conclusion.east) -- +(+10,0) |- (aim.east);
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\end{tikzpicture}
+%\end{center}
+% \caption{Simulation workflow regarding the parameter estimation process.}
+% \label{fig:flow_para}
+% \end{figure}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\end{document}

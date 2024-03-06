@@ -1,0 +1,229 @@
+% LaTeX file for Chapter 01
+<<'preambleA1',include=FALSE>>=
+library(knitr)
+opts_chunk$set(
+    fig.path='figure/cha1_fig', 
+    self.contained=FALSE,
+    cache=TRUE
+)
+
+@
+
+
+\chapter{Appendix}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Correlation Invariance to linear operations}\label{sec:coinvar}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Demonstration what linear operations $f\left(\X[u,i]\right)=\phi\X[u,i]-\lambda$ where $\phi,\lambda$ are scalars have on the correlation coefficient.
+\begin{align*}
+\C[i,j]
+&=\sum_{u=1}^{n} \frac{(\phi\X[u,i]-\lambda-\phi\bar{\X}[i]+\lambda)(\X[u,j]-\bar{\X}[j])}{\sqrt{\sum_{u=1}^{n}(\phi\X[u,i]-\lambda-\phi\bar{\X}[i]+\lambda)^2\sum_{u=1}^{n}(\X[u,j]-\bar{\X}[j])^2}}\\
+&=\sum_{u=1}^{n} \frac{\phi(\X[u,i]-\bar{\X}[i])(\X[u,j]-\bar{\X}[j])}{\sqrt{\phi^2\sum_{u=1}^{n}(\X[u,i]-\bar{\X}[i])^2\sum_{u=1}^{n}(\X[u,j]-\bar{\X}[j])^2}}\\
+&=\sum_{u=1}^{n} \frac{(\X[u,i]-\bar{\X}[i])(\X[u,j]-\bar{\X}[j])}{\sqrt{\sum_{u=1}^{n}(\X[u,i]-\bar{\X}[i])^2\sum_{u=1}^{n}(\X[u,j]-\bar{\X}[j])^2}}\\
+\end{align*}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Variance of the partitioned regression}\label{sec:varpar}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+From Equation~\eqref{eq:parest} we can further rearrange the partitioned least-squares estimator
+\begin{align*}
+\hbbeta_1&=\left[\X_1^\top\left(\I-\bP\right)\X_1\right]^{-1} \X_1^\top\left(\I-\bP\right)\y
+\end{align*}
+where $\I-\bP$ can be written as $\M$ which is sometimes also called the \textit{residual maker} matrix. Since $\bP$ is idempotent the matrix $\M=\I-\bP$ is idempotent as well. Thus, the variance of the partitioned least-squares estimator is
+\begin{align*}
+\var\left(\hbbeta_1\right)&=\left[\X_1^\top\M\X_1\right]^{-1} \X_1^\top\M\var\left(\y\right)\left(\left[\X_1^\top\M\X_1\right]^{-1} \X_1^\top\M\right)^\top\\
+&= \var\left(\y\right)\cdot\left[\X_1^\top\M\X_1\right]^{-1} \X_1^\top\underbrace{\M\M^\top}_{=\M}\X_1\left[\X_1^\top\M\X_1\right]^{-1}\\
+&= \var\left(\y\right)\cdot\left[\X_1^\top\M\X_1\right]^{-1}
+\end{align*}
+and since it holds that $\var\left(\y\right)=\var\left(\X\bbeta+\bvarepsilon\right)=\sigma^2\I$
+\begin{align*}
+\var\left(\hbbeta_1\right)&=\sigma^2\cdot\left[\X_1^\top\M\X_1\right]^{-1}=\sigma^2\cdot\left[\X_1^\top\left(\I-\bP\right)\X_1\right]^{-1}
+\label{eq:varpar}
+\end{align*}
+
+
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \section{Residuals}\label{sec:residuals}
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% 
+% \begin{align*}
+% \boldsymbol{e}&=\y-\hat\y=\y-\X\hbbeta \label{eq:residual}\\
+% &=\y-\X\left(\X^\top \X\right)^{-1}\X\y=\left[\1-\X\left(\X^\top \X\right)^{-1}\X\right]\y\\
+% &=\left[\1-\bP\right]\y
+% \end{align*}
+% 
+% %%%%%%
+% \subsubsection{Expectation}
+% %%%%%%
+% The expected value of the residuals $\boldsymbol{e}$ can be determined by taking the expected value of Equation~\eqref{eq:residual} as
+% \color{red}
+% \begin{align*}
+% \E\left(\boldsymbol{e}\right)&=\E\left(\y-\X\hbbeta\right)=\E\left(\X\bbeta+\bvarepsilon-\X\hbbeta\right)\\
+% &=\X\bbeta+0\cdot\boldsymbol{1}-\X\bbeta=0
+% \end{align*}
+% \color{black}
+% \begin{align*}
+% \E\left(\boldsymbol{e}\right)&=\E\left(\left[\1-\bP\right]\y\right)=\left[\1-\bP\right]\E\left(\y\right)
+% =\left[\1-\bP\right]\X\bbeta
+% %=\X\bbeta - \X\left(\X^\top \X\right)^{-1}\X\X\bbeta
+% \end{align*}
+% 
+% %%%%%%
+% \subsubsection{Variance}
+% %%%%%%
+% The variance the residuals $\boldsymbol{e}$ can be determined by applying the variance operator on Equation~\eqref{eq:residual} as
+% \color{red}
+% \begin{align*}
+% \var\left(\boldsymbol{e}\right)&=\var\left(\X\bbeta+\bvarepsilon-\X\hbbeta\right)\\
+% \text{Assuming independence:}&\\
+% &=\var\left(\boldsymbol{\varepsilon}\right)+\boldsymbol{X}\var\left(\boldsymbol{\hat{\beta}}\right)\boldsymbol{X}^\top\\
+% &=\sigma^2\boldsymbol{1}
+% +\boldsymbol{X}\sigma^2\left(\boldsymbol{X^\top X}\right)^{-1}\boldsymbol{X}^\top\\
+% \var\left(\boldsymbol{e}\right)&=\sigma^2 \left(\boldsymbol{1}
+% +\underbrace{\boldsymbol{X}\left(\boldsymbol{X^\top X}\right)^{-1}\boldsymbol{X}^\top}_{\equiv \bP}\right)
+% \end{align*}
+% \color{black}
+% 
+% \begin{align*}
+% \var\left(\boldsymbol{e}\right)&=\E\left[\left(\boldsymbol{e}-\E\left[\boldsymbol{e}\right]\right)\left(\boldsymbol{e}-\E\left[\boldsymbol{e}\right]\right)^\top\right]\\
+% &\text{since } \boldsymbol{e}-\E\left[\boldsymbol{e}\right] = (\1-\bP)\y-(\1-\bP)\X\bbeta=(\1-\bP)(\y-\X\bbeta)=(\1-\bP)\bvarepsilon\\
+% &=\E\left[\left([\1-\bP]\bvarepsilon\right)\left([\1-\bP]\bvarepsilon\right)^\top\right]\\
+% &=[\1-\bP]\E\left[\bvarepsilon\bvarepsilon^\top\right][\1-\bP]^\top\\
+% &\text{with } \var(\bvarepsilon)=\E(\bvarepsilon\bvarepsilon^\top)-\underbrace{\E(\bvarepsilon)}_{=0} ^2\\
+% &=[\1-\bP]\1\sigma^2[\1-\bP]^\top\\
+% &=[\1-\bP]\sigma^2
+% \end{align*}
+% 
+% where $\bP$ is a projection matrix and is thus idempotent.
+% %%%%%%
+% \subsubsection{Distribution of residuals}
+% %%%%%%
+% From the expectation and variance we can derive the distribution of the residuals as
+% %\url{https://stats.stackexchange.com/questions/20227/why-is-rss-distributed-chi-square-times-n-p?noredirect=1&lq=1}
+% \begin{align*}
+% \boldsymbol{e}&\sim\N_n\left(\boldsymbol{0}, \sigma^2 \underbrace{\left(\boldsymbol{1}+\bP\right)}_{\equiv \boldsymbol{Q}}\right)
+% \end{align*}
+% Since $\boldsymbol{Q}$ is also an idempotent matrix (\textcolor{red}{is this true?}) it holds:
+% \begin{align*}
+% \boldsymbol{V^\top Q V}=\boldsymbol{\Delta}=\text{diag}(\underbrace{1,...,1}_{n-p\text{ times}},\underbrace{0,...0}_{p\text{ times}})
+% \end{align*}
+% where $\boldsymbol{V}$ is a unitary matrix (\textcolor{red}{which means?}). Thus we can extend the distribution of the residuals to:
+% \begin{align*}
+% \boldsymbol{V^\top e}&\sim\N_n\left(\boldsymbol{0}, \sigma^2\boldsymbol{\Delta}\right)\\
+% \frac{\boldsymbol{V^\top e}}{\sigma}&\sim\N_n\left(\boldsymbol{0}, \boldsymbol{\Delta}\right)
+% \end{align*}
+% Switching to the $\chi^2$ distribution we get again rid of the unitary matrix $\boldsymbol{V}$ and leaves the determined amount of degrees of freedoms behind as this is equals the rank of $\boldsymbol{\Delta}$
+% \begin{align*}
+% \frac{\boldsymbol{e^\top VV^\top e}}{\sigma^2}&\sim\chi^2_{\text{df=rank}(\boldsymbol{\Delta})}\\
+% \frac{\boldsymbol{e^\top e}}{\sigma^2}=\frac{(n-p)\hat{\sigma}^2}{\sigma^2}&\sim\chi^2_{\text{df=}n-p}
+% \end{align*}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Approximate likelihood}\label{sec:approxlikelihood}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Since real-life data is always observed in intervals $\boldsymbol{D}=(\underline{y},\overline{y}]$ and is never exact (although treated as if), the likelihood contribution of one observation is:
+\begin{align*}
+l(\boldsymbol{\beta_\tram,\theta}|\boldsymbol{D})=\bfP(\underline{y}< Y\leq \overline{y}|\boldsymbol{X}=\boldsymbol{x})=F_Z\left(h_Y(\overline{y}|\boldsymbol{\theta})-\boldsymbol{\tilde{x}}\boldsymbol{\beta_\tram}\right)-F_Z\left(h_Y(\underline{y}|\boldsymbol{\theta})-\boldsymbol{\tilde{x}}\boldsymbol{\beta_\tram}\right)
+\end{align*}
+which is the exact likelihood as originally introduced by Fisher. The approximated likelihood for a continuous response is obtained by making the interval around the "observed" value $y$ negligibly small $\boldsymbol{D}=(y-\epsilon,y+\epsilon]$ and thus the likelihood is approximated as
+\begin{align*}
+l(\boldsymbol{\beta_\tram,\theta}|\boldsymbol{D})&=F_Z\left(h_Y(y+\epsilon|\boldsymbol{\theta})-\boldsymbol{\tilde{x}}\boldsymbol{\beta_\tram}\right)-F_Z\left(h_Y(y-\epsilon|\boldsymbol{\theta})-\boldsymbol{\tilde{x}}\boldsymbol{\beta_\tram}\right)\\
+&=\int_{y-\epsilon}^{y+\epsilon}F_Z'\left(h_Y(u|\boldsymbol{\theta})-\boldsymbol{\tilde{x}}\boldsymbol{\beta_\tram}\right)h_Y'(u|\boldsymbol{\theta})du\\
+&\approx f_Z\left(h_Y(y|\boldsymbol{\theta})-\boldsymbol{\tilde{x}}\boldsymbol{\beta_\tram}\right)h_Y'(y|\boldsymbol{\theta})\cdot 2\epsilon\\
+&\propto f_Z\left(h_Y(y|\boldsymbol{\theta})-\boldsymbol{\tilde{x}}\boldsymbol{\beta_\tram}\right)h_Y'(y|\boldsymbol{\theta})
+\end{align*}
+The joint likelihood for several observations assuming independence is:
+\begin{align*}
+L(\boldsymbol{\beta_\tram,\theta}|\boldsymbol{D_1,...,D_N})=\prod_{i=1}^N l(\boldsymbol{\beta_\tram,\theta}|\boldsymbol{D_i})
+\end{align*}
+where it is theoretically and computationally convenient to operate on the log scale
+\begin{align*}
+\ell(\boldsymbol{\beta_\tram,\theta}|\boldsymbol{D_1,...,D_N})=\sum_{i=1}^N \log\left(l(\boldsymbol{\beta_\tram,\theta}|\boldsymbol{D_i})\right)
+\end{align*}
+The resulting maximum log-likelihood estimator is then:
+\begin{align*}
+\boldsymbol{\hat{\beta}_\tram,\hat\theta}=\argmax \ell(\boldsymbol{\beta_\tram,\theta}|\boldsymbol{D_1,...,D_N})
+\end{align*}
+
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \section{Distribution of the maximum likelihood estimator}
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \cite{Held2020}[Chapter 4] 4.2.3
+% For one parameter
+% \begin{align}
+% \sqrt{J_{1:n}\left(\theta_0\right)}\left(\hat{\theta}_{\text{ML}}-\theta_0\right)\overset{a}{\sim} \N(0,1)
+% \end{align}
+% where $J_{1:n}$ represents the expected Fisher information for the full random sample. We can then transform to
+% \begin{align*}
+% \hat{\theta}_{\text{ML}}\overset{a}{\sim} \N(\theta_0,J_{1:n}\left(\theta_0\right)^{-1})
+% \end{align*}
+% which can be extended with three further variants as
+% \begin{align*}
+% \hat{\theta}_{\text{ML}}&\overset{a}{\sim} \N\left(\theta_0,J_{1:n}\left(\hat\theta_{\text{ML}}\right)^{-1}  \right)\\
+% \hat{\theta}_{\text{ML}}&\overset{a}{\sim} \N\left(\theta_0,I\left(\theta_0;X_{1:n}\right)^{-1}\right)\\
+% \hat{\theta}_{\text{ML}}&\overset{a}{\sim} \N\left(\theta_0,I\left(\hat\theta_{\text{ML}};X_{1:n}\right)^{-1}\right)
+% \end{align*}
+% For details and justification we refer the reader to HBS (Result 4.6). 
+% 
+% From these results we see that \textbf{a} standard error of the maximum likelihood estimate $\hat\theta_{\text{ML}}$ is:
+% \begin{align}
+% \text{se}\left(\hat\theta_{\text{ML}}\right)=\left(I\left(\hat\theta_{\text{ML}};x_{1:n}\right)\right)^{-1/2}
+% \end{align}
+% and for multivariate models this turns to
+% \begin{align}
+% \text{se}\left(\hat\theta_{i}\right)=\sqrt{\left[\bI\left(\hat\btheta_{\text{ML}}\right)^{-1}\right]_{ii}}
+% \end{align}
+% where we note that the inverse of the observed Fisher information matrix is needed which requires that it exists in the first place.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\section{Difference between \texttt{tram::Coxph} and \texttt{survival::coxph}}\label{sec:mo}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Extension of Figure~\ref{fig:colllikelihood} with the \texttt{tram::Coxph} and \texttt{survival::coxph} models.
+We did not investigate these two models formally in this thesis and therefore this plot should only act as stimulation for further research within this area.
+
+\begin{figure}[H]%H is strict!
+\centering
+\includegraphics[width=0.85\textwidth]{figure/ch02_figcolllikelihood_appendix.pdf}
+\caption{Extension of Figure~\ref{fig:colllikelihood} with the \texttt{tram::Coxph} and \texttt{survival::coxph} models to stimulate further research. For the \texttt{tram::Lm} and \texttt{lm} comparison it was the classical \texttt{lm} that seems to be superior by not reacting to the $\y,\X$ association in a weird way. However, when comparing \texttt{tram::Coxph} and \texttt{survival::coxph}, it seems to be the case that the transformation model is more robust to the $\y,\X$ association.
+}
+\label{fig:collappendix}
+\end{figure}
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\section{Computational reproducibility}\label{sec:repro}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+This master thesis is built on two bitbucket repositories for storage reasons. The \texttt{simulation} project (\url{https://bitbucket.org/jsepin/simulation/src/master}) contains the needed files to execute the simulation study. Everything else can be found in the \texttt{STA495MT\_JS} project (\url{https://bitbucket.org/jsepin/STA495MT_JS/src/master}) which also carries this report.
+
+To reproduce the whole work some things have to be considered:
+\begin{enumerate}
+\item The workflows in Figures~\ref{fig:sim_para} and \ref{fig:sim_design} located in the \texttt{STA495MT\_JS} project need to be produced in the end since they need access to the experimental conditions and also to a demonstration data frame that is produced after the successful execution of the simulation study and is saved in the \texttt{simulation} project.
+\item Running the \texttt{STA495MT\_JS} project also needs access to some figures that are constructed in the \texttt{simulation} project.
+\item Executing the simulation study needs to have access to the parameters that are specified in Chapter~\ref{simstudy} (needs to be accessible by \texttt{data/boston\_parameters.rds}). Furthermore, it is a computationally rather costly process and we performed the simulation on a remote desktop. There, not too much memory is allowed and although planned at the beginning to, in a first step produce all data and then apply the estimating process, this was simply not possible due to the limited storage. Thus, the data generating and estimating process was performed in one step.
+\end{enumerate}
+
+However, if you are not interested in generating everything new, you can also simply clone the \texttt{STA495MT\_JS} project which comes with everything you need to generate this Master thesis.
+
+To \textit{completely} reproduce the report perform the following steps:
+\begin{enumerate}
+\item Clone the following two git repositories into the same directory: \url{https://bitbucket.org/jsepin/simulation/src/master} and \url{https://bitbucket.org/jsepin/STA495MT_JS/src/master}
+\item Compile (Build All) the \texttt{STA495MT\_JS/STA495MasterThesis/report/report.Rproj} project. This will provide the parameters for the experimental conditions.
+\item Run the \texttt{simulation/simulation\_total.R} file. This will perform the whole simulation. You need the experimental conditions which get saved in \\ \texttt{STA495MT\_JS/STA495MasterThesis/data/boston\_parameters.rds}. The script will automatically try to access it.
+\item Run the \texttt{simulation/results\_simulation/results\_simulation.Rproj} project. This will provide the figures for the results and the demonstration data frame \\(\texttt{simulation/data/data\_demo.rds}) for the workflows.
+\item Run the \texttt{STA495MT\_JS/STA495MasterThesis/sim\_workflow\_tikz/flow\_para.Rnw} and \\\texttt{STA495MT\_JS/STA495MasterThesis/sim\_workflow\_tikz/flow\_design.Rnw} files to generate the workflows.
+\item Run the \texttt{STA495MT\_JS/STA495MasterThesis/report/report.Rproj} project again to finalize the report.
+\end{enumerate}
+
+\newpage
+<<>>=
+sessionInfo()
+@
+
+

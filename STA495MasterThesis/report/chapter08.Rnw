@@ -1,0 +1,89 @@
+% LaTeX file for Chapter 08
+<<'preamble08',include=FALSE>>=
+library(knitr)
+opts_chunk$set(
+    fig.path='figure/ch08_fig', 
+    self.contained=FALSE,
+    cache=TRUE
+) 
+@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Discussion}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+We designed and conducted a Monte Carlo simulation study (Chapter~\ref{simstudy}) and assessed the detrimental effects of collinearity on the Wald statistics, proportion of significant results, estimates, bias and standard error in multiple linear regression models (Chapter~\ref{results}). Moreover, we assessed the sample size needed to alleviate the harm caused by collinearity (Figures~\ref{fig:simres_nrel1} and \ref{fig:simres_nrel2}). The whole amount of results is provided on: \url{https://bitbucket.org/jsepin/simulation/src/master/results_simulation/results_simulation.pdf}.
+
+We found no signs of a tipping point at Belsley's cut-off of 30. This indicates that the detrimental impact of collinearity on all estimands does not depend on a single cut-off, but rather on many factors such as sample size, noise, true effect estimate and estimation technique.
+    
+We found that the extent of collinearity summarized by one condition number impacts the Wald statistics values of both, \texttt{lm} and \texttt{tram::Lm}.
+Further, we demonstrated that \texttt{lm} and \texttt{tram::Lm} react very similarly to collinearity among the explanatory variables (Figures~\ref{fig:simres_wald1} and \ref{fig:simres_wald2}).
+The same collinearity diagnostics are therefore of use in both methods to quantify the collinearity within $\X$.
+We also demonstrated that there is an association between condition number and the difference of Wald statistic values between \texttt{lm} and \texttt{tram::Lm} (Figures~\ref{fig:simres_differencevscondu1} and \ref{fig:simres_differencevscondu2}).
+These differences also depend on many factors such as sample size, noise and the condition number and interact in a non-trivial way.
+
+In general, we found that the Wald statistic values differ between \texttt{lm} and \texttt{tram::Lm}.
+We demonstrated that \texttt{tram::Lm} renders more frequently significant conclusions that may be incorrect compared to \texttt{lm} (Figures~\ref{fig:simres_prop1}--\ref{fig:simres_differencevslm2}). The possible reason for this behavior is that \texttt{tram::Lm} reacts to the amount of noise (\texttt{s\_y}) in a paradox way, meaning that with less noisy data, the \texttt{tram::Lm} modelling procedure gets more and more disturbed (due to association between $\y$ and $\X$). This detrimental effect is more pronounced for small sample sizes.
+
+In Chapter~\ref{chap:two_way_anova}, we proposed a method for sample size calculation in the least-squares case (\texttt{lm}) to determine the appropriate sample size needed to find a specific effect that deals with the amount of collinearity and also works for continuous variables.
+With that, we have now a tool to appropriately calculate the sample size needed in an analysis that contains several explanatory variables which can induce collinearity. 
+  
+We developed \textsf{R} software which is integrated in the \texttt{Collinearity} package (publicly available on GitHub: \url{https://github.com/jsepin/Collinearity.git} to support the theoretical derivations and give examples to apply it in practice.
+This software extends the original \texttt{Collinearity} package by three functions: \texttt{copowerlm, cofingerprint} and \texttt{cotograph}.
+These functions provide alternative collinearity diagnostic tools and compute sample size that adjusts for collinearity.
+
+In Chapters~\ref{chap:boston_intro} and \ref{chap:collfinger} we applied the methods to \texttt{BostonHousing2} data originating from \cite{Harrison1978}.
+Our results confirmed the author's perception that there is no detrimental impact of collinearity in this \texttt{BostonHousing2} data set for the main explanatory variable.
+
+The thesis uses collinearity diagnostic procedures suggested by \cite{Belsley1991}.
+Although Belsley's work is extensive and discussed many collinearity diagnostics procedures, there are still other collinearity measures that can be considered to assess collinearity and that are implemented in \textsf{R} software such as for example \texttt{collin} \citep{collin}, \texttt{mctest} \citep{mctest}, \texttt{lrmest} \citep{lrmest}, \texttt{mcvis} \citep{mcvis},  \texttt{rvif} \citep{rvif} and \texttt{multiColl} \citep{multiColl}.
+Future work may also take some of the collinearity measures implemented in these packages to quantify collinearity.
+
+In this thesis, we focus on low-dimensional scenarios where the collinearity that we manipulated manually is equivalent to correlation.
+Although correlation is also collinearity, the inverse does not necessarily hold true, as collinearity is also possible without large correlation. 
+Therefore, experimental conditions of higher dimensionality where no large pairwise correlations yet high collinearity is present might be a topic that is worth to explore in future research.
+Nevertheless, the correlation setup of this thesis could be easily used for a high-dimensional collinearity assessment.
+
+Furthermore, we did not unleash the full power of all transformation models, as this master thesis compares \texttt{lm} and \texttt{tram::Lm}.
+The \texttt{tram} \citep{Hothorn2020} package carries further models that are in their transformation function much more flexible than the simple \texttt{tram::Lm}, which uses linear combinations equivalent to the \texttt{lm} case to transform the outcome.
+For example, a comparison between the classical Cox proportional hazard model, e.g. \texttt{survival::coxph}, with the transformation model equivalent \texttt{tram::Coxph} may be interesting since also the profile likelihood is applied in the classical approach but not possible in the transformation model setup (see Appendix~\ref{sec:mo} for a short illustration thereof).
+Other transformation models in \texttt{tram} or, for example, analysis of count data with \texttt{cotram} \citep{Siegfried2020} may also be worth to assess the detrimental effects of collinearity on estimands.
+
+The sample size calculation procedure proposed in this thesis is restricted to the least-squares model.
+However, also for other statistical models a sample size calculation that includes collinearity knowledge is worth to consider in the light of good practice.
+For example, the extension to other settings such as when the outcome is binary would be of great use.
+Yet, the derivation thereof may not be straightforward or even feasible at all.
+Therefore, a possible general method would be to set up an easy usable environment that makes use of simulations to determine the appropriate sample size.
+
+This thesis came up with a simulation workflow that investigates two methods under different collinearity magnitudes.
+The study is reproducible, follows strict guidelines and is visualized in an unambiguous but user-friendly way by mixing code and graphs.
+This is useful, since properly set up simulation studies are becoming increasingly important to compare methods which rely on computational power to obtain results rather than on analytical derivations, and therefore, it is difficult to study their properties \citep{Burton2006, Morris2019, pawel2022}.
+This simulation workflow evaluates different methods in terms of collinearity, as the underlying core is still the same.
+Thus, future simulation studies can use the openly accessible code from the workflow to clearly communicate their simulation approach.
+
+This thesis also sets the theoretical scene to see more problems in statistics through the eyes of collinearity.
+For example, randomization planning or sampling algorithms to create matched data sets can be implemented with the clear target to reduce collinearity.
+This theoretical basis can be used for at least two topics.
+First, to assess whether other cut-offs can induce detrimental effects on estimands.
+Such as, for example, condition numbers over 100, which are perceived as problematic by \cite{montgomery}.
+Second, the general setup of this thesis could be easily applied to investigate the detrimental impact of the $\y,\X$ association.
+This, because our results indicate that \texttt{tram::Lm} fit is affected by both, collinearity in $\X$ but also the strength of the $\y,\X$ association.
+
+This thesis proposes a sample size calculation tool (\texttt{copowerlm}) that allows to appropriately plan an analysis which is conducted in multiple regression settings with potential collinearity and is not limited to a binary variable of interest.
+The tool computes the sample size needed to find a certain effect, given it is there, in settings that require multiple regression techniques.
+Planning is crucial, as an appropriate sample size calculation reduces the risk of false conclusions, particularly in systems with high collinearity where the estimation procedure can lead to unstable results. 
+This is not only convenient to have but absolutely essential as correctly powered studies protect the overall error rate and therefore support correct conclusions.
+        
+We also came up with additional software implemented in the \texttt{Collinearity} package that allows to easily assess the results and the stability thereof (\texttt{cofingerprint}).
+Moreover, an alternative approach to the diagnostics of Belsley has been developed (\texttt{cotograph}). The function \texttt{cotograph} investigates from a more applied side the relation of the variable of interest to the explanatory variables that are not of primary interest, allowing to communicate with practitioners in a more down-to-earth way.
+With these two functions, statistical analysts have two additional tools to inspect complex models and to get guidance and help in potentially ill-conditioned systems. 
+
+We have created an environment where the theory of the classical least-squares model and transformation model is extensively investigated with respect to collinearity.
+Theoretical knowledge required to understand the results are pointed out where possible and the behavior of the methods are compared in a sound simulation study.
+Practicing statisticians who are concerned about collinearity have an open-accessible script that provides help and guidance to detect the impact of detrimental effect of collinearity on multiple linear regression estimands.
+Furthermore, a mitigation strategy in form of an appropriate sample size has been developed and examples how to use it in practice are given.
+
+Multiple regression techniques remain perhaps the most frequently used technique to create knowledge from complex interacting systems as nature is. It is therefore important to have no fear from collinearity, as it is likely to be omnipresent, but take it as it is.
+Nevertheless, this thesis provides guidance that helps to navigate through shallow waters that collinearity can impose.
+
+

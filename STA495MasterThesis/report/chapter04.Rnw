@@ -1,0 +1,709 @@
+% LaTeX file for Chapter 04
+
+<<'preamble04',include=FALSE, cache=FALSE>>=
+# clear memory
+#rm(list = ls())
+library(knitr)
+opts_chunk$set(
+    fig.path='figure/ch04_fig', 
+    self.contained=FALSE,
+    cache=TRUE, # reduced time if TRUE
+    dev = "png" # reduced size!
+)
+@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Sample size to mitigate collinearity}\label{chap:two_way_anova}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+This chapter discusses the harm induced by collinearity from an analytical point of view and what can be done in terms of increasing the sample size to compensate appropriately for the effects induced by collinearity.
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Harmful collinearity and the Wald statistics}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\cite{Belsley1991} describes that collinearity increases the instability of the least-squares estimates, in terms of inflated $\var(\hbbeta)$. Whether this inflation is large or not is relative, and an intuitive comparison is to relate the variance to what it is actually describing: the estimate $\hbbeta$. Thus, a familiar measure is the Wald statistics, which is in the end what we want:
+\begin{align}
+\hbt[j]&=\frac{\hbbeta[j] - \bbeta^0[j]}{\text{se}\left(\hbbeta[j]\right)} \label{eq:wald}
+\end{align}
+What the Wald statistics represents is also sometimes called the \textit{signal-to-noise} ratio.
+
+\begin{figure}[H]%H is strict!
+\begin{center}
+<<power_goodbad, fig.height = 1.4, fig.width = 6,echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE,dev='pdf'>>=
+# Type I and Type II error visualization
+library(ggplot2)
+
+# Normal distribution
+x <- rep(seq(from = -4, to = 4, length.out = 1000),2)
+y <- dnorm(x, mean = 0,sd=1)
+df <- data.frame(x, y)
+plot1 <- ggplot(df, aes(x=x, y=y)) +
+  geom_line(size=.5) +
+  geom_ribbon(data = df[df$x<=1.96 & df$x>= -1.96, ]   ,aes(ymax=y),ymin=0,alpha=0.9,fill = "#FFCCCC")+
+  geom_ribbon(data = df[df$x>=1.96, ]  ,aes(ymax=y),ymin=0,alpha=0.9,fill = "#f5f511")+ #  FFFFCC
+  geom_vline(xintercept = c(-1,1)*1.96,lty=2, col = "black")+
+  annotate("text", label = c(expression(alpha/2),  expression(H[0]:~0), expression(alpha/2)), x=c(-1.96,0,1.96), vjust = "inward",y= -Inf)+
+  labs(y="",x="")+
+	annotate("text", label = c("correct detection", "non-detection", "incorrect detection"), x=c(-Inf,0,+Inf), hjust = "inward",vjust = +3.8,y= Inf,size = 4)+
+	annotate("text", label = bquote("Truth: "~beta[j]<0), x=c(-Inf), hjust = "inward",vjust = +1.2,y= Inf,size = 4, check_overlap = T)+
+	guides(color="none")+
+  scale_fill_discrete("", labels=c('Type 1 error', 'Power'))+
+  theme_classic()+
+	scale_x_continuous(name="", breaks=c(-4,-1.96,0,1.96,4), labels=c(-4,-1.96,0,1.96,4), limits=c(-4,4))+
+	  theme(axis.text.y=element_blank(),  #remove y axis labels
+        axis.ticks.y=element_blank(),
+	  			axis.line.y=element_blank()#remove y axis ticks
+        )+
+    theme(plot.margin = margin(0,0,-0.5,0, "cm"))
+
+plot1
+@
+\end{center}
+\vspace{-0.5cm}
+\caption{Visualization of the distribution of a Wald statistics and the interpretation thereof with the common two-sided hypothesis test and a significance level of 0.05 if the true effect is known to be $\beta_j<0$.}
+%\vspace*{-8mm}
+\label{fig:power_goodbad}
+\end{figure}
+Wald statistics that are in their absolute value $\mid\hbt[j]\mid$ smaller as the typically used critical value of $q_{1-\alpha/2,Z}\approx 1.96$ (corresponding to the $1-\alpha/2$ quantile of a standard normal distributed variable $Z$ with significance level $\alpha=0.05$) means that we are not able to reject the Null hypothesis
+\begin{align*}
+H_0:\bbeta[j]=\bbeta^0[j]
+\end{align*}
+and if we know that $\bbeta[j]\neq\bbeta^0[j]$ holds, we call this loss-of-detection \textit{harmful}. Furthermore, $\hbt[j]$ can also be large but with an incorrect sign, which represents an even more dangerous case as this gives false confidence in making a decision. The idea thereof is illustrated in Figure~\ref{fig:power_goodbad}. 
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\newpage
+\section{Partitioned regression}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+But what causes a low $\hbt[j]$? To investigate this question, it is worthwhile to have a look at the partitioned regression to see how collinearity within $\X$ messes with the detection of a potential signal. Thus, the linear regression model can be partitioned as
+\begin{align*}
+\y&=\X\bbeta+\bvarepsilon\\
+&=\X_1\bbeta_1+\X_2\bbeta_2+\bvarepsilon
+\end{align*}
+where $\X=\left[\X_1,\X_2\right]$ with $\X_1\in \R^{n\times p_1}$, $\X_2\in \R^{n\times p_2}$ and $\bbeta=\left[\bbeta_1,\bbeta_2\right]$ with $\bbeta_1\in \R^{p_1\times 1}$, $\bbeta_2\in \R^{p_2\times 1}$ and $p_1+p_2=p$. The least squares estimator turns then to
+\begin{align*}
+\hbbeta&=\left(\X^\top\X\right)^{-1}\X^\top\y\\
+\left(\X^\top\X\right)\hbbeta&=\X^\top\y\\
+\begin{pmatrix}\X_1^\top\\ \X_2^\top\end{pmatrix} \begin{pmatrix}\X_1&\X_2\end{pmatrix} \begin{pmatrix}\hbbeta_1\\\hbbeta_2\end{pmatrix}&=\begin{pmatrix}\X_1^\top \y\\\X_2^\top\y\end{pmatrix}\\
+\begin{pmatrix}
+\X_1^\top \X_1 & \X_1^\top \X_1\\
+\X_2^\top \X_1 & \X_2^\top \X_2
+\end{pmatrix}
+\begin{pmatrix}\hbbeta_1\\ \hbbeta_2\end{pmatrix} &= \begin{pmatrix}\X_1^\top \y \\ \X_2^\top \y\end{pmatrix}
+\end{align*}
+which can be written in two equations called the \textit{normal equations}
+\begin{align*}
+\X_1^\top \X_1 \hbbeta_1+\underbrace{\X_1^\top \X_2}_{0\text{ if }\perp}\hbbeta_2 &= \X_1^\top \y\\
+\underbrace{\X_2^\top \X_1}_{0\text{ if }\perp}\hbbeta_1+\X_2^\top \X_2\hbbeta_2&= \X_2^\top \y
+\end{align*}
+where we already see that the partial estimates are not influenced by each other if the partial design matrices $\X_1$ and $\X_2$ are orthogonal ($\perp$) or perfectly independent of each other. But if this is not the case, we can investigate how they interact with each other. To show this, the second equation normal equation can be transformed to
+\begin{align*}
+\hbbeta_2&= \left(\X_2^\top \X_2\right)^{-1}\X_2^\top\left(\y-\X_1\hbbeta_1\right)
+\end{align*}
+and to get $\hbbeta_1$ we substitute the expression for $\hbbeta_2$ into the first normal equation as
+\begin{align*}
+\X_1^\top \X_2\left(\X_2^\top \X_2\right)^{-1}\X_2^\top\left(\y-\X_1\hbbeta_1\right)+\X_1^\top \X_1\hbbeta_1&= \X_1^\top \y\\
+\X_1^\top \X_1\hbbeta_1-\X_1^\top \X_2\left(\X_2^\top \X_2\right)^{-1}\X_2^\top\X_1\hbbeta_1&= \X_1^\top \y-\X_1^\top \X_2\left(\X_2^\top \X_2\right)^{-1}\X_2^\top\y\\
+\X_1^\top\left(\I-\X_2\left(\X_2^\top \X_2\right)^{-1}\X_2^\top\right)\X_1\hbbeta_1&=\X_1^\top\left(\I-\X_2\left(\X_2^\top \X_2\right)^{-1}\X_2^\top\right)\y
+\end{align*}
+This solves then as
+\begin{align}
+\hbbeta_1&=\left[\X_1^\top\left(\I-\underbrace{\X_2\left(\X_2^\top \X_2\right)^{-1}\X_2^\top}_{\bP}\right)\X_1\right]^{-1} \X_1^\top\left(\I-\underbrace{\X_2\left(\X_2^\top \X_2\right)^{-1}\X_2^\top}_{\bP}\right)\y \label{eq:parest}
+\end{align}
+
+where $\X_2\left(\X_2^\top \X_2\right)^{-1}\X_2^\top\equiv\bP$ is a projection matrix. 
+
+%%%%%%%
+\subsection*{Contribution of the projection matrix and $\bR^2$ to the instability}{\label{sec:rsquared}}
+%%%%%%
+
+It is worth to have a short clarification what a projection matrix $\bP$ means and what also belongs to this topic is the $\bR^2$ as an assessment of a fit. Because with this $\bR^2$, a more specific amount of collinearity can be quantified, as we will see.
+
+From the least-squares estimator, we can compare how our model fits the outcome $\hy$ with what is actually there, namely $\y$. The estimated outcome $\hy$ can be easily shown to be
+\begin{align*}
+\hy&=\X\hbbeta
+=\underbrace{\X\left(\X^\top\X\right)^{-1}\X^\top}_{\bP}\y=\bP\y
+\end{align*}
+
+where the term $\X\left(\X^\top\X\right)^{-1}\X^\top=\bP\in\IR^{n\times n}$ is a projection matrix, since it maps $\y$ onto $\X$ as well as possible. A projection matrix is idempotent, which means that $\bP^\top=\bP$ and $\bP^2=\bP$ holds. If we now want to assess how well $\hy$ fits the truth $\y$ we can use this $\bR^2$ or also called coefficient of determination that is defined as
+\begin{align}
+\bR^2&=1-\frac{SS_\text{Res}}{SS_\text{Tot}}=\frac{SS_\text{Model}}{SS_\text{Tot}}\nonumber\\
+\text{and more general}&\nonumber\\
+\bR^2&=\left(\y^\top \y\right)^{-1}\hy^\top \hy\label{eq:r2}
+\end{align}
+Thus, $\bR^2$ describes the ratio of what of $\y$ can be explained by a linear combination of $\X$ with some coefficients. $\bR^2$ also represents the square of the correlation between the fit $\hy$ and the truth $\y$. Figure~\ref{fig:projection1} visualizes what a good and bad projection in form of a high and low $\bR^2$ looks like.
+
+\begin{figure}[H]%H is strict!
+\begin{center}
+<<projection1, fig.height = 3.2, fig.width = 6,echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE,dev='pdf'>>=
+
+library(mvtnorm); library(ggplot2); library(ggpubr)
+set.seed(4324)
+n <- 50
+X1 <- runif(n = n, min = -3, max = 3)+rnorm(n = n, mean = 0, sd = 0.2)
+eps_x <- rnorm(n = n, mean = 0, sd = 1)
+X2 <- 2*X1 + eps_x*0.1
+X3 <- 2*X1 + eps_x*4
+
+# projection matrix
+P <- X1%*% solve(t(X1) %*% X1) %*% t(X1)
+hat_X2 <- P %*% X2
+hat_X3 <- P %*% X3
+
+df <- data.frame("x2"=X2, "hat_x2"= hat_X2, "x1" = X1)
+R_squared <- round(solve(t(X2) %*% X2) %*% (t(hat_X2) %*% hat_X2),3)
+#plotting
+p1 <- ggplot(data = df, aes(x = x2,y = hat_x2))+
+  geom_point()+
+  geom_segment(aes(x = x2, y = hat_x2, xend = x2, yend = x2),col = "blue")+
+  geom_abline(slope = 1, intercept = 0,lty = 2)+
+  theme_classic()+
+  labs(subtitle = bquote(R^2== .(R_squared)),
+       x= expression(y), y = expression(hat(y)) )
+
+p12 <- ggplot(data = df, aes(x = x1,y = x2))+
+  geom_point()+
+  geom_smooth(method = "lm",se = F)+
+  theme_classic()+
+  labs(#subtitle = bquote(R^2== .(R_squared)),
+       x= expression(x), y = expression(y) )
+
+
+df <- data.frame("x2"=X3, "hat_x2"= hat_X3, "x1" = X1)
+R_squared <- round(solve(t(X3) %*% X3) %*% (t(hat_X3) %*% hat_X3),3)
+#plotting
+p2 <- ggplot(data = df, aes(x = x2,y = hat_x2))+
+  geom_point()+
+  geom_segment(aes(x = x2, y = hat_x2, xend = x2, yend = x2),col = "blue")+
+  geom_abline(slope = 1, intercept = 0,lty = 2)+
+  theme_classic()+
+  labs(subtitle = bquote(R^2== .(R_squared)),
+       x= expression(y), y = expression(hat(y)) )
+
+
+p22 <- ggplot(data = df, aes(x = x1,y = x2))+
+  geom_point()+
+  geom_smooth(method = "lm",se = F)+
+  theme_classic()+
+  labs(#subtitle = bquote(R^2== .(R_squared)),
+       x= expression(x), y = expression(y) )
+
+
+p_tot <- ggpubr::ggarrange(p12,p22,p1,p2,ncol=2, nrow=2, align = "v",
+                  common.legend = T, legend="bottom"
+                  )
+p_tot <- annotate_figure(p_tot, top = text_grob("Good and bad projection",color = "black", face = "bold", size = 14))
+p_tot
+@
+\end{center}
+\vspace{-1cm}
+\caption{Projection $\hy=\X\left(\X^\top\X\right)^{-1}\X^\top\y$ for two differently constructed $\y$. The first column visualizes a good linear fit (blue line) and projection with a rather high $\bR^2$-value, whereas the second column is not as good. This, because we see in the upper right plot that the points are not as close to the blue line and further we see in the bottom right plot that the points are quite off of the diagonal line. Points right on the diagonal would mean that the $\y$ is well explainable by linear transformations of $\X$.}
+\label{fig:projection1}
+\end{figure}
+
+Coming back to the quantification of uncertainty, the variance of the partitioned least-squares estimator is then (see Appendix~\ref{sec:varpar} for the derivation)
+\begin{align*}
+\var\left(\hbbeta_1\right)&=\sigma^2\cdot \left[\X_1^\top\left(\I-\bP\right)\X_1\right]^{-1}\\
+&=\sigma^2\cdot \left[\X_1^\top \X_1-\X_1^\top \bP \X_1\right]^{-1}\\
+&=\sigma^2\cdot \left[\X_1^\top \X_1-X_1^\top \bP^\top \bP \X_1\right]^{-1}\\
+&=\sigma^2\cdot \left[\X_1^\top \X_1-\left(\bP \X_1\right)^\top \bP \X_1\right]^{-1}
+\end{align*}
+where $\bP\X_1$ means that it maps $\X_1$ onto $\X_2$ as demonstrated earlier. Thus, we can denote:
+\begin{align*}
+\hX_1&\equiv\bP\X_1
+\end{align*}
+and set it in as
+\begin{align*}
+\var\left(\hbbeta_1\right)
+&=\sigma^2\cdot \left[\X_1^\top \X_1-\hX_1^\top \hX_1\right]^{-1}\\
+&=\sigma^2\cdot \left[\X_1^\top \X_1\left(\I-\underbrace{\left(\X_1^\top \X_1\right)^{-1}\hX_1^\top \hX_1}_{\bR_{\X}^2}\right)\right]^{-1}
+\end{align*}
+
+where we note that term $\left(\X_1^\top \X_1\right)^{-1}\hX_1^\top \hX_1$ is very similar to  Equation~\eqref{eq:r2}. And indeed the application of Equation~\eqref{eq:r2} is not limited to the outcome $\y$ but can very well also describe how well a regression among the explanatory variables fits. More specifically, it describes here a regression of $\X_1$ on $\X_2$, and we denote this by $\bR_{\X}^2$.
+
+Now, if we stick with the one coefficient of interest, here $\bbeta_1$, and move to the squared Wald statistics, we can substitute our findings as
+\begin{align}
+\hbt_1^2&=\left(\hbbeta_1-\bbeta_1^o\right)^\top\cdot\left(\var\left(\hbbeta_1\right)\right)^{-1}\cdot\left(\hbbeta_1-\bbeta_1^o\right)\nonumber\\
+&=\left(\hbbeta_1-\bbeta_1^o\right)^\top\cdot\left[\X_1^\top \X_1\left(\I-\bR_{\X}^2\right)\right]\cdot\left(\hbbeta_1-\bbeta_1^o\right)/\sigma^2 \label{eq:squaredwaldpart}
+\end{align}
+
+which points out several key components why a low $\hbt_1^2$ might appear. Thus, a non-detection can be caused by:
+\begin{enumerate}
+\setlength\itemsep{-0.2em}
+\item Low $\hbbeta_1\in\R^{ p_1\times 1}$
+\item High noise $\sigma^2$
+\item High collinearity in form of a large $\bR_{\X}^2\in\R^{ p_1\times p_1}$
+\item Low length of $\X_1\in\R^{n\times p_1}$ in form of a small $\X_1^\top \X_1\in\R^{ p_1\times p_1}$
+\end{enumerate}
+
+While the first three points are not really something that we have in the hand to manipulate, the fourth point regarding the length of $\X_1$ partly is: In form of the sample size $n$. Thus, to assure that finding a relevant treatment effect $\bbeta_1$, is not out of chance, there is usually a sample size calculation conducted to have more certainty that, given that a (particular) treatment effect is there, we will find it with a certain probability. This is also called the power of the test. 
+
+Sample size calculations are usually made only for one explanatory variable, and one does not include the effect of other variables in the model. However, as demonstrated in Figure~\ref{fig:coll2}, obtaining truth effects requires adjusting for confounders and thus one may have to add multiple additional explanatory variables. This, to the risk of inducing collinearity in the model. Certainty in finding the effect in this multiple model requires then the sample size calculation to be adjusted for collinearity, as we will see. 
+
+
+%%%%%%%%%%%%%%%%%%
+\section{Can the condition number explain everything?}
+%%%%%%%%%%%%%%%%%%
+
+From what we know so far, the threat to our results comes from the entries of the term $\left(\X^\top\X\right)^{-1}$. $\X^\top\X$ is a $p\times p$ symmetric matrix and therefore has $n_p=\sum_{i=1}^{p}i$ elements describing it, which might be very large. Therefore, the condition number claims to be a nice way of quantifying the collinearity within $\X$ by a single number instead of $n_p$ elements.
+
+Summarizing a high dimensional system in a single number may be a difficult task. However, while focusing on only one variable $\X[,j]$, the term that may be problematic is $\left(\left(\X^\top\X\right)^{-1}\right)[j,j]$. Whether this particular value is well-defined by the condition number shall be checked now in the simple setup where $\X\in\IR^{n\times p}$ with $p=3$ and $\X[,1]$ is a constant and the other two explanatory variables are binary (0 or 1).
+
+The condition number is calculated on the equilibrated design matrix $\bE$.
+Following from the equilibration is that the diagonals of $\bE^\top\bE$ are now 1. No collinearity, and thus the optimal case means that all off-diagonals are equals to zero. Since this is hardly the case, those values can fluctuate between 0 up to 1. Now, the product between the constant term $\bE[,1]$ and $\bE[,2]$, $\bE[,3]$ respectively, is fortunately not arbitrary. Setting the proportion of ones in variable $\bE[,j]$ as $\boldsymbol{\pi}[j]$, we can show that
+\begin{align*}
+\left(\bE^\top\bE\right)[j,1]=\left(\bE^\top\bE\right)[1,j]&=\left(\frac{\X[,1]}{\sqrt{\sum_{i=1}^{n}\X[i,1]^2}}\right)^\top\left(\frac{\X[,j]}{\sqrt{\sum_{i=1}^{n}\X[i,j]^2}}\right)\\
+&=\left(\frac{\bE[,1]}{\sqrt{n}}\right)^\top\left(\frac{\bE[,j]}{\sqrt{n\cdot \boldsymbol{\pi}[j]}}\right)
+=\frac{\bE[,1]\bE[,j]}{n\sqrt{\boldsymbol{\pi}[j]}}=\frac{n\cdot \boldsymbol{\pi}[j]}{n\sqrt{\boldsymbol{\pi}[j]}}=\sqrt{\boldsymbol{\pi}[j]}
+\end{align*}
+
+which leaves in this simple setup only $\left(\bE^\top\bE\right)[3,2]=\left(\bE^\top\bE\right)[2,3]$ subject to fluctuations which we call $r$ here. Therefore, the equilibrated squared design matrix is
+\begin{align*}
+\bE^\top\bE=\begin{pmatrix}
+1 & \sqrt{\boldsymbol{\pi}[2]} & \sqrt{\boldsymbol{\pi}[3]}\\
+\sqrt{\boldsymbol{\pi}[2]} & 1 & r\\
+\sqrt{\boldsymbol{\pi}[3]} & r & 1
+\end{pmatrix}
+\end{align*}
+with $r$ on a range between 0 and 1 where 1 means consistent agreement. The inverse is then
+\begin{align}
+\left(\bE^\top\bE\right)^{-1}=&
+\frac{1}{- 2\sqrt{\boldsymbol{\pi}[2]} \sqrt{\boldsymbol{\pi}[3]}r+ \boldsymbol{\pi}[2] +\boldsymbol{\pi}[3]+r^2-1 }\nonumber\\
+&\begin{pmatrix}
+r^2 - 1 & \sqrt{\boldsymbol{\pi}[2]} -\sqrt{\boldsymbol{\pi}[3]}r & \sqrt{\boldsymbol{\pi}[3]}-\sqrt{\boldsymbol{\pi}[2]}r\\
+\sqrt{\boldsymbol{\pi}[2]} -\sqrt{\boldsymbol{\pi}[3]}r & \boldsymbol{\pi}[3]-1  & r-\sqrt{\boldsymbol{\pi}[2]}\sqrt{\boldsymbol{\pi}[3]}\\
+\sqrt{\boldsymbol{\pi}[3]}-\sqrt{\boldsymbol{\pi}[2]}r & r-\sqrt{\boldsymbol{\pi}[2]}\sqrt{\boldsymbol{\pi}[3]} & \boldsymbol{\pi}[2]-1
+\end{pmatrix}
+\label{eq:inv}
+\end{align}
+
+\begin{figure}[h]%H is strict!
+\begin{center}
+<<diag_con, fig.height = 8, fig.width = 10,echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE,dev='png'>>=
+library(tidyverse)
+set.seed(324532)
+mat <- diag(3)
+mat_off_diag <-expand.grid( c(0.5,0.7,0.9),#pi_1
+                            c(0.5,0.7,0.9),#pi_2
+                            seq(from = 0, to =0.999, length.out = 1000)# r
+                            )
+res <- matrix(NA, ncol = 7, nrow = nrow(mat_off_diag))
+for(i in 1:nrow(mat_off_diag)){
+  mat[1,2] <- mat[2,1] <- sqrt(mat_off_diag[i,1])
+  mat[1,3] <- mat[3,1] <- sqrt(mat_off_diag[i,2])
+  mat[2,3] <- mat[3,2] <- mat_off_diag[i,3]# r
+  ETE <- mat
+  tryCatch({
+  sing_val <- sqrt(eigen(ETE)$values)
+  cond_num <- max(sing_val)/min(sing_val)
+  trouble <- solve(ETE)
+  res[i,] <-  c("cond_num"=cond_num, "00"=trouble[1,1],"11"=trouble[2,2],
+                "22"=trouble[3,3], "p1"=mat_off_diag[i,1],
+                "p2"=mat_off_diag[i,2], "r"=  mat_off_diag[i,3])
+  },error = function(e){res[i,] <<- unlist(c(NA,NA,NA,NA,mat_off_diag[i,] )) })
+}
+res <- data.frame(res)
+colnames(res) <- c("cond_num", "E00","E11", "E22","p1","p2","r")
+# transforming to long format
+res <- res %>% gather(key="variable",value = "diag_entry", -c(cond_num, p1,p2,r))
+
+res$p1 <- paste0("bold(pi)~'[1]'==",res$p1)
+res$p2 <- paste0("bold(pi)~'[2]'==",res$p2)
+
+res$variable[res$variable=="E00"] <- "(bold(E^'T'~E))^{-1}~'[1,1]'"
+res$variable[res$variable=="E11"] <- "(bold(E^'T'~E))^{-1}~'[2,2]'"
+res$variable[res$variable=="E22"] <- "(bold(E^'T'~E))^{-1}~'[3,3]'"
+
+#plotting
+ggplot(data = na.omit(res), aes(x=(cond_num)^2, y = diag_entry,col =r  ))+
+  geom_point()+
+  geom_hline(yintercept = 1,lty = 2,col = "grey")+
+  geom_vline(xintercept = 1,lty = 2,col = "grey")+
+  facet_grid(variable~   p1+p2,
+             labeller = label_parsed
+             )+
+  labs(title = "Diagonal Elements - Responsible for increased standard error",
+       y = bquote("Diagonal Entries of "~(E^"T"~E)^{-1}),
+       x=  bquote("(Condition Number)"^2) )+
+  theme_classic() +
+  scale_color_viridis_c() +
+  xlim(1,1000)+ylim(1, 150) +
+  theme(legend.position = "top")+
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+@
+\end{center}
+\vspace{-1cm}
+\caption{Diagonal entries of $\left(\bE^\top\bE\right)^{-1}$ from Equation~\eqref{eq:inv} versus the squared condition number $\kappa\left(\bE\right)$ which are approximated by the eigenvalue decomposition. Not all results from the constellations are shown since there are some outliers, making the visualization uninformative. }
+\label{fig:diag_con}
+\end{figure}
+
+Figure~\ref{fig:diag_con} shows the calculated \textit{squared} condition number versus the diagonal elements of the inverse matrix $\left(\bE^\top\bE\right)^{-1}$ for different $r$ iterated on a grid between 0 and 1, not including 1 though and different $\boldsymbol{\pi}[2]$ and $\boldsymbol{\pi}[3]$.
+Unfortunately, it does not seem to be the case that the diagonal entries are easily explainable by the \textit{squared} condition number, which is probably not a big surprise since the condition number summarizes here 3 numbers in one. However, we see that with increasing condition number also the diagonal entries increase, resulting in blown-up standard errors.
+
+%%%%%%%%%%%%%%%%%%
+\section{Sample size calculation}
+%%%%%%%%%%%%%%%%%%
+The sample size calculation is based on the research question and thus the hypothesis we want to address. This can for example be a certain treatment that we want to test for its efficacy compared to a placebo. Thus, we formulate the null hypothesis as
+\begin{align*}
+H_0:\beta_\text{trt}=\beta_\text{trt}^0
+\end{align*}
+To detect the signal, meaning a rejection of $H_0$, we have to specify an alternative hypothesis
+\begin{align*}
+H_A:\beta_\text{trt}=\beta_\text{trt}^0+\Delta
+\end{align*}
+where $\Delta=\beta_\text{trt}-\beta_\text{trt}^0$ is the relevant effect which we want to find with a certain probability given it is there.
+With \textit{find}, we mean that we will reject the null hypothesis $H_0$ in either direction. Since the effect of the treatment on the outcome can be confounded, we need to include them in the analysis to get the true effect of the treatment. The confounding variables are usually not of primary interest and thus finding the true effect of confounders does not have to occur with certainty and is for the sample size calculation usually omitted. Thus, focusing on only one variable $\X[,j]$ and the respective estimate $\hbbeta[j]$, we can formulate the Wald statistics as:
+\begin{align*}
+\hbt[j]&=\frac{\hbbeta[j] - \bbeta^0[j]}{\sqrt{\var\left(\hbbeta[j]-\bbeta^0[j]\right)}}=\frac{\hbbeta[j] - \bbeta^0[j]}{\sigma\sqrt{ \left(\left(\X^\top\X\right)^{-1}\right)[j,j] }}\overset{H_0,\text{ approx}}{\sim}\N(0,1)
+\end{align*}
+Now, if we work with the equilibrated design matrix, we also have to correct the coefficients as
+\begin{align*}
+\hbt[j]&=\frac{\hb[j] - \b^0[j]}{\sigma\sqrt{ \left(\left(\bE^\top\bE\right)^{-1}\right)[j,j] }}\overset{H_0,\text{ approx}}{\sim}\N(0,1)
+\end{align*}
+where $\hb[j]=\sqrt{\sum_{i=1}^{n}\X[i,j]^2}\cdot \hbbeta[j]$ which turns the formula to
+\begin{align}
+\boxed{
+\hbt[j] =\sqrt{\sum_{i=1}^{n}\X[i,j]^2}\cdot\frac{\hbbeta[j]-\bbeta^0[j]}{\sigma}\cdot \frac{1}{\sqrt{ \left(\left(\bE^\top\bE\right)^{-1}\right)[j,j] }}\overset{H_0,\text{ approx}}{\sim}\N(0,1)
+}\label{eq:power_normal}
+\end{align}
+where we remind that the term $\left(\left(\bE^\top\bE\right)^{-1}\right)[j,j]$ is in the optimal case (no collinearity) just 1.
+Furthermore, in the binary setting, the term $\sqrt{\sum_{i=1}^{n}\X[i,j]^2}$ reduces to $\sqrt{n\cdot \boldsymbol{\pi}[j] }$ where $\boldsymbol{\pi}[j]$ is the percentage of ones in $\X[,j]$. Now, $\hat\Delta=\hbbeta[j]-\bbeta^0[j]$ is under $H_0$ assumed to be 0 and under $H_A$ it is $\Delta$. We will reject $H_0$ if the absolute value of the statistics $\hbt[j]$ is larger than a certain critical value $q_{1-\alpha/2,Z}$ which is defined as the quantile where for a standard normal distributed variable $Z$ (such as our $\hbt[j]$ approximately is) holds $\P(q_{1-\alpha/2,Z}\leq Z\leq q_{1-\alpha/2,Z})=1-\alpha$. Then, the power is the probability that given the alternative $H_A$ is true, we also find it.
+This includes all values for $\hbt[j]$ that are in their absolute value larger than $q_{1-\alpha/2,Z}$. The concept of this is visualized in Figure~\ref{fig:power_normal}.
+
+\begin{figure}[H]%H is strict!
+\begin{center}
+<<power_normal, fig.height = 3.5, fig.width = 8,echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE,dev='pdf'>>=
+# Type I and Type II error visualization
+library(ggplot2);library(gridExtra)
+
+# Normal distribution
+x <- rep(seq(from = -5, to = 8, length.out = 100),2)
+group <- rep(c(0,4), each = 100)
+y <- dnorm(x, mean = group,sd=1)
+df <- data.frame(x, y,group)
+df$group <- as.character(df$group)
+
+plot1 <- ggplot(df, aes(x=x, y=y, group = group,fill = group,col = group)) +
+  geom_line(size=.5) +
+  geom_ribbon(data = df[df$x>1.96, ]   ,aes(ymax=y),ymin=0,alpha=0.3)+
+  geom_ribbon(data = df[df$x< -1.96, ]  ,aes(ymax=y),ymin=0,alpha=0.3)+
+  #scale_fill_manual(name='', values=c("0" = "green4", "2" = "red"))+
+  geom_vline(xintercept = c(0,4),lty=2, col = "gray")+
+  annotate("text", label = c(expression(alpha/2),  expression(H[0]:~0), expression(alpha/2), expression( H[A]:~bold(t)^0~"[j]")), x=c(-1.96,0,1.96,4), vjust = "inward",y= -Inf)+
+  labs(y="Density",x=expression(hat(bold(t))~"[j]"),title = "Visualization of Power on Normal-Distribution scale")+
+  guides(color="none")+
+  scale_fill_discrete("", labels=c('Type 1 error', 'Power'))+
+  theme_classic()
+plot1
+@
+\end{center}
+\vspace{-1.3cm}
+\caption{Visualization of power on the normal distribution scale according to Equation~\eqref{eq:power_normal}. The alternative hypothesis is in this example set as $\t^0[j]=4$ which is arbitrary but should only visualize the procedure.}
+\label{fig:power_normal}
+\end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Estimation of $\sigma^2$}{\label{sec:sigma}}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Unfortunately, $\sigma$ in Equation~\eqref{eq:power_normal} is not given and has to be estimated as $\hat\sigma$. Thus, there is actually no way around estimating $\sigma$ when truly quantifying the uncertainty of the estimates $\hbbeta$ and we will investigate this now.
+
+The estimator of $\sigma^2$ is derived from the sum of the squared residuals. Residuals $\be[i]$ represent the term of the outcome that, after model fitting, can not be explained by the model and are therefore estimates for the errors $\bvarepsilon[i]$:
+\begin{align*}
+\be&=\y-\hy=\y-\X\hbbeta
+\end{align*}
+The sum of the squared residuals is then
+\begin{align*}
+SS_\text{Res}&=\sum_{i=1}^{n}\left(\y[i]-\hy[i]\right)^2=\be^\top\be\\
+&=\left(\y-\X\hbbeta\right)^\top \left(\y-\X\hbbeta\right)\\
+&=\y^\top \y-\hbbeta^\top \X^\top \y-\y^\top \X \hbbeta+\hbbeta^\top \X^\top \X \hbbeta\\
+&=\y^\top\y-2\hbbeta^\top\X^\top\y+\hbbeta^\top \X^\top \X \hbbeta
+\end{align*}
+and with $\left(\X^\top \X\right)\hbbeta=\X^\top \y$ this turns to 
+\begin{align*}
+SS_\text{Res}&=\y^\top\y-\hbbeta^\top \X^\top \y
+\end{align*}
+The estimator of $\sigma^2$ is also called the residual mean square since it comes from dividing the $SS_\text{Res}$ by its degrees of freedom which is $n-p$ as
+\begin{align*}
+\hat\sigma^2&=MS_\text{Res}=\frac{SS_\text{Res}}{n-p}=\frac{\sum_{i=1}^{n}\left(\y[i]-\hy[i]\right)^2}{n-p}=\frac{\be^\top\be}{n-p}
+\end{align*}
+Note, $\hat\sigma$ is also called the residual standard error, and it is the value that \textsf{R} provides with the function \texttt{sigma(\dots)} applied on a linear model (\texttt{lm}).
+Moreover, \cite{montgomery}[Appendix C] shows that the residuals are distributed with the  following relation
+\begin{align}
+\frac{SS_\text{Res}}{\sigma^2}=\frac{\be^\top\be}{\sigma^2}=\frac{(n-p)\hat{\sigma}^2}{\sigma^2}&\sim\chi^2_{\text{df=}n-p}\label{eq:sigma_dist}
+\end{align}
+which will be useful later when we also want to respect the uncertainty of $\hat\sigma$.
+
+
+<<notrelevant, echo=F, eval = F>>=
+s_y <- seq(from = 1, to = 10, length.out = 10)
+n <- seq(from = 5, to = 55, by = 1)
+exp_con <- expand.grid("n"=n, "s_y"=s_y)
+x <- exp_con[1,]
+B <- 1000
+set.seed(34234)
+results <- apply(exp_con,1, function(x){
+  sample <- matrix(rnorm(n = as.numeric(x[1])*B,mean = 0, sd = as.numeric(x[2]) ), ncol = B )
+  S2 <- apply(sample, 2, var)
+  Lower <- (as.numeric(x[1])-1)*S2/(qchisq(p = 0.975, df = as.numeric(x[1])-1,lower.tail = T ))
+  Upper <- (as.numeric(x[1])-1)*S2/(qchisq(p = 0.025, df = as.numeric(x[1])-1,lower.tail = T))
+  out <- data.frame("n"=as.numeric(x[1]), "s_y"=as.numeric(x[2]) ,"Lower"=Lower, "S2"=S2, "Upper"=Upper)
+  return(out)
+}
+)
+results <- do.call("rbind", results)
+tail(results)
+results <- results %>% gather(key = "quantile", value = "value",-c(n,s_y))
+results  <- results %>% group_by(n,s_y,quantile) %>% summarise(value = mean(value))
+
+results$bias <- results$value - results$s_y^2# included or not
+library(ggplot2)
+
+results[results$quantile == "Lower", ] %>%
+ggplot(aes(x =n, y = s_y^2, z = value))+
+  geom_contour_filled(binwidth=1,show.legend = T)+
+  facet_grid(.~quantile)
+
+results[results$quantile == "Upper", ] %>%
+ggplot(aes(x =n, y = s_y^2, z = value))+
+  geom_contour_filled(binwidth=10,show.legend = T)+
+  facet_grid(.~quantile)
+
+@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\newpage
+\section{$F$-distribution}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Extending Equation~\eqref{eq:power_normal} with the estimated $\hat{\sigma}$ means the combination of two distributions in one. Luckily, the $F$-distribution exists that allows us to study the ratio of two $\chi^2$-distributions.
+Thus, we need to transform Equation~\eqref{eq:power_normal} on to the $\chi^2$ scale as
+\begin{align*}
+\hbt[j]^2 &=\sum_{i=1}^{n}\X[i,j]^2\cdot\frac{\left(\hbbeta[j]-\bbeta^0[j]\right)^2}{\sigma^2}\cdot \frac{1}{ \left(\left(\bE^\top\bE\right)^{-1}\right)[j,j] }\overset{H_0,\text{ approx}}{\sim}\chi^2_{1}
+\end{align*}
+dividing $\hbt[j]^2 $ by $\frac{(n-p)\hat\sigma^2}{\sigma^2}$ (see Equation~\eqref{eq:sigma_dist}) which follows a $\chi^2_{n-p}$ distribution and additionally dividing both terms by the respective degree of freedom we get
+\begin{align*}
+\phi^2&=\frac{\sum_{i=1}^{n}\X[i,j]^2\cdot\frac{\left(\hbbeta[j]-\bbeta^0[j]\right)^2}{\sigma^2}\cdot \frac{1}{ \left(\left(\bE^\top\bE\right)^{-1}\right)[j,j] } \cdot (n-p)}{
+\frac{(n-p)\hat\sigma^2}{\sigma^2} \cdot 1
+}
+\end{align*}
+which can be simplified to
+\begin{align}
+\boxed{\phi^2=
+\left[\sum_{i=1}^{n}\X[i,j]^2\right]\cdot\frac{\Delta^2}{\hat\sigma^2}\cdot \frac{1}{ \left(\left(\bE^\top\bE\right)^{-1}\right)[j,j] }\overset{H_0,\text{ approx}}{\sim}F_{(1,n-p)}}\label{eq:mypower}
+\end{align}
+The power calculation works on this $F$-distribution scale the same as before. We will reject the null hypothesis $H_0$ when $\phi^2$ is larger than a certain critical value $q_{\alpha, F_{(1,n-p)}}$ which is defined as the quantile where the cumulative distribution function of $F_{(1,n-p)}$, with non-centrality parameter 0, reaches the probability $1-\alpha$ or $\P(F_{(1,n-p)}\leq q_{\alpha,F_{(1,n-p)}})=1-\alpha$.
+The power of the test is the cumulative distribution function of $F_{(1,n-p)}$ with non-centrality parameter $\left[\sum_{i=1}^{n}\X[i,j]^2\right]\cdot\frac{\Delta^2}{\hat\sigma^2}\cdot \frac{1}{ \left(\left(\bE^\top\bE\right)^{-1}\right)[j,j] }$ evaluated at the critical value of $F_{(1,n-p)}$ with non-centrality parameter 0. The concept is also visualized in Figure~\ref{fig:power_F}.
+
+\begin{figure}[h]%H is strict!
+\begin{center}
+<<power_F, fig.height = 3.5, fig.width = 8,echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE,dev='pdf'>>=
+library(ggplot2);library(gridExtra)
+# chi-squared distribution
+x <- rep(seq(from = 0, to = 30, length.out = 100),2)
+group <- rep(c(0,4), each = 100)
+group <- group^2
+y <- df(x, df1 = 1,df2 = 100, ncp = group)
+df <- data.frame(x, y,group)
+df$group <- as.character(df$group)
+plot2 <- ggplot(df, aes(x=x, y=y, group = group,fill = group, col = group)) +
+  theme_classic()+
+  geom_line(size=.5, show.legend = FALSE) +
+  geom_ribbon(data = df[df$x>qf(p=1-0.05, df1 = 1,df2 = 100), ]   ,aes(ymax=y),ymin=0,alpha=0.3)+
+  annotate("text", label = c(expression(alpha)), x=c(qf(p=1-0.05, df1 = 1,df2 = 100)), vjust = "inward",y= -Inf)+
+  guides(color="none")+
+  labs(y="Density",x=bquote(phi^2),title = "Visualization of Power on F-Distribution scale")+
+  scale_fill_discrete("", labels=c('Type 1 error', 'Power'))+
+  ylim(0, 0.2)
+
+plot2
+@
+\end{center}
+\vspace{-1.3cm}
+\caption{Visualization of power on the $F$-distribution scale according to Equation~\eqref{eq:mypower}. The alternative hypothesis is in this example set as $\phi^2=16$ ($\t^0[j]=4$) serving as non-centrality parameter, $n=100$ and $p=3$  which are all arbitrary parameters but should only visualize the procedure.}
+\label{fig:power_F}
+\end{figure}
+In terms of code, this means we adjust our total sample size $n$ so that the following holds:
+\begin{align}
+\text{power}=&1-\texttt{pf}\Biggl(\texttt{q=}\texttt{qf}\left(\texttt{p=}1-\alpha,\texttt{ df1=}1,\texttt{ df2=}\mathcolorbox{yellow}
+{n}-p\right),\nonumber\\
+& \qquad\texttt{ df1=}1,\texttt{ df2=}\mathcolorbox{yellow}
+{n}-p,\texttt{ ncp=} \left[\sum_{i=1}^{\mathcolorbox{yellow}
+{n}}\X[i,j]^2\right]\cdot\frac{\Delta^2}{\hat\sigma^2 }\cdot\frac{1}{\left(\left(\bE^\top\bE\right)^{-1}\right)[j,j]}\Biggr)\label{eq:mypower_code}
+\end{align}
+
+Equation~\eqref{eq:mypower_code} is implemented in the function called \texttt{myFpower} which forms the basis of the \texttt{copowerlm} function available in the \texttt{Collinearity} package \citep{Collinearity}. The arguments of \texttt{myFpower} are:
+\begin{multicols}{2}
+\begin{itemize}
+\item \texttt{Delta}=$\Delta$
+\item \texttt{sigma}=$\hat\sigma$
+\item \texttt{trouble}=$\left(\left(\bE^\top\bE\right)^{-1}\right)[j,j]$
+\item \texttt{voilen}=$\frac{1}{n}\cdot\left[\sum_{i=1}^{n}\X[i,j]^2\right]$
+\item \texttt{n}= sample size $n$
+\item \texttt{p}= number of parameters in the model including an intercept
+\item \texttt{alpha}= significance level $\alpha$
+\end{itemize}
+\end{multicols}
+Usually, those parameters are obtained from a pilot study and the function then returns the power that is reached. We remind again that the term $\left(\left(\bE^\top\bE\right)^{-1}\right)[j,j]$ is just 1 in the optimal case where there is no collinearity present. But we know this is almost always not the case.
+Furthermore, what we note at this point is that while focusing only on one variable $\X[,j]$, we only need the information what the other variables do to $\X[,j]$ via $\left(\left(\bE^\top\bE\right)^{-1}\right)[j,j]$. This means, this holds for any distribution of the variable that is not of primary interest. Unfortunately, this switch to continuity is not as easy in the variable of interest $\X[,j]$. Since, this means that the term $\sqrt{\sum_{i=1}^{n}\X[i,j]^2}$ gets not conveniently reduced to $\sqrt{n\cdot \boldsymbol{\pi}[j] }$. But still, if we make further assumptions about the properties of $\X[,j]$, performing a sample size calculation is possible. We switch now to random variables and assume $X_{1j},\dots,X_{nj}$ are identically and independent distributed. Then, the expected squared length thereof is
+\begin{align*}
+\E\left(\sum_{i=1}^{n}X_{ij}^2\right)&=\sum_{i=1}^{n}\E\left(X_{ij}^2\right)\\
+&\text{with } \E(X_{ij}^2)=\var(X_{ij})+\E(X_{ij})^2\\
+&=\sum_{i=1}^{n}\left(\var(X_{ij})+\E(X_{ij})^2\right)=n\left(\var(X_{ij})+\E(X_{ij})^2\right)
+\end{align*}
+Thus, we would expect $\sum_{i=1}^{n}\X[i,j]^2$ to be $n\cdot\left(\var(X_{ij})+\E(X_{ij})^2\right)$. This, under the assumption that $\E(X_{ij})$ and $\var(X_{ij})$ are correctly specified, meaning that they stay robust with more observations. This means, we can break the boundaries and switch to more complex setups for the sample size calculation than just a binary case.
+
+<<notrelevant2, eval = F, echo=F>>=
+#### NOT IMPORTANT:
+balancer <- function(p_int,p_other,r,n){
+  return(n*p_int *((p_int - 2*sqrt(p_int*p_other)*r + p_other + r^2 - 1)/(p_int-1)))
+}
+
+par <- expand.grid("p_int"=seq(from = 0.1, to =0.9, length.out = 100),
+                   "p_other"=seq(from = 0.1, to =0.9, length.out = 100),
+                   "r"=0:4/5,
+                   "n"=100
+                   )
+surf <- apply(par, 1, function(x) balancer(x[1],x[2],x[3],x[4]))
+df <- data.frame(par,surf)
+
+# plotting
+ggplot(data =df[surf>0,], aes(x= p_int, y= p_other, fill = surf, z = surf )) +
+  geom_raster()+
+  scale_fill_gradientn(colours=c("#0000FFFF","#FFFFFFFF","#FF0000FF"))+
+  geom_contour(binwidth = 10,lty = 2,col = "black")+
+  facet_wrap(~r,scales = "fix",ncol = 5)
+
+@
+
+\begin{figure}[H]%H is strict!
+\begin{center}
+<<mypow, fig.height = 5.8, fig.width = 8,echo=FALSE, eval=T, message=FALSE, warning=FALSE,dev='pdf'>>=
+library(Collinearity)
+par <- expand.grid("Trouble"= seq(1,15, length.out = 100),#100
+                   "n" = seq(10,80, length.out = 100),#100
+                   "Delta" = c(2,3),"sigma"=c(2,3))
+pow <- apply(par, 1, function(x) Collinearity::copowerlm(power = NULL, 
+                                                        alpha=0.05, n=x[2], 
+                                                        Delta=x[3], sigma=x[4], 
+                                                        trouble = x[1])$power )
+
+pow <- data.frame(par, "Power"=pow)
+library(metR);library(ggplot2)
+ggplot(data = pow, aes(x=Trouble, y=n, fill = Power, z = Power )) +
+  geom_raster()+
+  geom_contour(binwidth = 0.1,lty = 2,col = "black")+
+  geom_text_contour(stroke = 0.15,binwidth = 0.2,
+                    label.placer = label_placer_random(),skip = 0,col = "red")+
+  theme_classic()+theme(legend.position = "right")+
+  facet_wrap(.~Delta + sigma,
+             labeller = labeller(Delta=c("2"="Delta = 2","3"="Delta = 3"),
+                                sigma=c("2"="Sigma = 2","3"="Sigma = 3")))+
+  labs(title = "Power calculation (adjusted function)", y = "Total sample size",
+       x="Diagonal entries of inverse matrix")+
+   scale_fill_viridis_c()
+@
+\end{center}
+\vspace{-1.2cm}
+\caption{Resulting power for different combinations of $\Delta$, $\hat\sigma$, the total sample size $n$ and diagonal entries of the inverse matrix $\left(\left(\bE^\top\bE\right)^{-1}\right)[j,j]$. The squared length of $\X[,j]$ is here set to $n\cdot 1/2$ which means that the proportion of ones in $\X[,j]$ is 50\%.}
+\label{fig:mypow}
+\end{figure}
+
+Figure~\ref{fig:mypow} shows the behavior of the power as a result of different combinations of $\Delta$ (\Sexpr{min(pow$Delta)} or \Sexpr{max(pow$Delta)}), $\hat\sigma$ (\Sexpr{min(pow$sigma)} or \Sexpr{max(pow$sigma)}), the total sample size $n$ (from \Sexpr{min(pow$n)} up to \Sexpr{max(pow$n)}) and diagonal entries of the inverse matrix $\left(\left(\bE^\top\bE\right)^{-1}\right)[j,j]$ (from \Sexpr{min(pow$Trouble)} up to \Sexpr{max(pow$Trouble)}). The squared length of $\X[,j]$ is here defined as $n\cdot 1/2$ ($\boldsymbol{\pi}[j]=1/2$). Figure~\ref{fig:mypow} demonstrates that the number of observations needed to maintain the desired power is linearly related to the diagonal entries, since the contour lines are straight. Furthermore, the slope of this relationship seems to be defined by the ratio $\frac{\Delta}{\hat\sigma}$ but also the wanted power level.
+
+%==================
+\subsection*{Different contrast in $\X$}
+%==================
+\begin{figure}[h!]%H is strict!
+\begin{center}
+<<mypow_unbalanced, fig.height = 5, fig.width =5 ,echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE,dev='pdf'>>=
+
+library(Collinearity)
+par_unba <- expand.grid("Trouble"= seq(1,15, length.out = 100),
+                   "n" = seq(10,80, length.out = 100),
+                   "Delta" = c(3),"sigma"=c(3),
+                   "voilen"=c(0.5,0.7,0.9)
+                   )
+pow_unba <- apply(par_unba, 1, function(x) Collinearity::copowerlm(power = NULL, 
+                                                        alpha=0.05, n=x[2], 
+                                                        Delta=x[3], sigma=x[4], 
+                                                        trouble = x[1],
+                                                        p = 3, voilen =  x[5]
+                                                        )$power )
+
+pow_unba <- data.frame(par_unba, "Power"=pow_unba)
+
+library(metR);library(ggplot2)
+ggplot(data = pow_unba, aes(x=Trouble, y=n, z = Power,linetype=as.factor(voilen),
+                            col=as.factor(voilen))) +
+  geom_contour(binwidth = 0.2) +
+  geom_text_contour(stroke = 0.15,binwidth = 0.2,label.placer = label_placer_random(),skip = 0, show.legend = F)+
+  theme_classic()+
+  theme(legend.position = "bottom")+
+  labs(title = expression("Power calculation (adjusted function) for different"~bold(pi)~"["~j~"]"), y = "Total sample size",
+       x=expression("Diagonal entry of inverse matrix: "~((bold(E^T~E))^{-1})~"[j,j]=trouble")) +
+  guides(linetype="none")+
+  scale_colour_viridis_d(expression(pi[j]~":"))
+@
+\end{center}
+\vspace{-1.2cm}
+\caption{Resulting power for different combinations of the total sample size $n$, diagonal entries of the inverse matrix $\left(\left(\bE^\top\bE\right)^{-1}\right)[j,j]$ and different $\boldsymbol{\pi}[j]$. $\Delta$=\Sexpr{unique(par_unba[,"Delta"])} and $\sigma$=\Sexpr{unique(par_unba[,"sigma"])} are fixed. Obviously the power in the treatment contrast depends on the proportion $\boldsymbol{\pi}[j]$.}
+\label{fig:mypow_unbalanced}
+\end{figure}
+
+Equation~\eqref{eq:mypower} contains the term $\sum_{i=1}^{n}\X[i,j]^2$ which represents the length of the variable of interest $\X[,j]$. Thus, the power depends on it. Naturally, the question arises in binary settings about the encoding, since this has certainly an influence. The default choice in \texttt{lm} is either a 0 or 1 which reduces the length of $\X[,j]$ to $n\cdot\boldsymbol{\pi}[j]$ where $\boldsymbol{\pi}[j]$ is the proportion of ones. A different encoding is the so-called sum-to-zero contrast which means it is now either a $-1$ or $1$ and thus the length of $\X[,j]$ is now simply $n$ and therefore the proportion has no influence on the length. Figure~\ref{fig:mypow_unbalanced} illustrates how the power depends on $\boldsymbol{\pi}[j]$ in the $0,1$ encoding and of course shows that the power increases with larger $\boldsymbol{\pi}[j]$. However, the power calculation does not consider how we get to the estimated coefficient $\hbbeta[j]$ which of course does also depend on $\boldsymbol{\pi}[j]$. And in addition, we are not to determine $\boldsymbol{\pi}[j]$ since this is a property of the data.
+
+%==================
+\subsection*{Change of Power due to Collinearity}
+%==================
+Given the effect is there, of course we want to find it. And we want to find it with a certain probability, which represents our power.
+A general desired power seems to be roughly around 80\% which means that out of 5 experiments, 4 of them will find the effect.
+On the other hand, a power of 50\% is as good as a coin flip to detect the signal and is then rather a waste of resources.
+
+\begin{figure}[h!]%H is strict!
+\begin{center}
+<<pl, fig.height = 5, fig.width = 6,echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE,dev='pdf'>>=
+library(Collinearity)
+# parameters
+sigma <- seq(from = 2, to =10,length.out = 10)
+Delta <- seq(from = 2, to =20,length.out = 10)
+par <- expand.grid("sigma"=sigma, "Delta"=Delta)
+#par <- par[par$Delta/par$sigma>1,]
+
+results <- data.frame()
+for(k in 1:nrow(par)){
+  trouble <- seq(from = 1, to = 10, length.out = 100)
+  n <- Collinearity::copowerlm(power = 0.8, n= NULL, alpha=0.05, Delta = par[k,2], sigma=par[k,1], p=3 , voilen=0.5, trouble = 1 )$n
+  power <- numeric(length(trouble))
+  for(i in 1:length(trouble)){
+    pow <- Collinearity::copowerlm(power = NULL, n = n, alpha=0.05, Delta=par[k,2], sigma=par[k,1], p=3 , voilen=0.5, trouble = trouble[i] )$power
+    results <- rbind(results, c("sigma"=par[k,1], "Delta"=par[k,2],"n"=n,
+                              "trouble"=trouble[i], "power"=pow))
+  }
+}
+# housekeeping
+colnames(results) <- c("sigma", "Delta","n", "trouble", "power")
+results$deltasigma <- paste0(results$Delta,",", results$sigma)
+results$snr <- results$Delta / results$sigma
+results <- results %>% group_by(sigma, Delta) %>% mutate("max_pow" = max(power))
+
+#plotting
+ggplot(data = results, aes(x=trouble, y = power, col = Delta/sigma,
+                           group = Delta/sigma ))+
+  geom_line()+
+  geom_hline(yintercept = c(0.5,0.8),lty = 2)+
+  geom_vline(xintercept = c(1),lty = 1)+
+  theme_classic()+theme(legend.position = "bottom")+
+  labs(title = "Loss of Power due to collinearity", y = "Power",
+       x=expression("Diagonal entry of inverse matrix: "~((bold(E^T~E))^{-1})~"[j,j]=trouble"))+
+  scale_colour_viridis_c(expression(Delta/sigma))
+
+@
+\end{center}
+\vspace{-1cm}
+\caption{Dynamic of power with different levels of collinearity (defined by \texttt{trouble}) for different signal-to-noise ratios $\Delta/\sigma$ where the sample size is initially calculated for the assumption of no collinearity to reach the power of 80\% but stays constant. $\pi_j$ is here fixed at 1/2.}
+\label{fig:pl}
+\end{figure}
+
+Figure~\ref{fig:pl} shows how the power drops with increasing amount of collinearity for a fixed length of $\X[,j]\in\R^{n\times 1}$ where $n$ is calculated for a particular $\Delta$ and $\hat\sigma$ to get the desired power of 80\% under the assumption of no collinearity. The figure shows what happens to the power with increasing amount of collinearity, expressed by the $j$th diagonal entry of $\bE^\top\bE$. It gets already clear that the situation where the power reaches 50\% is not describable by a single condition number that is valid for all circumstances.
+This, because it is already impossible to describe it through $\left(\left(\bE^\top\bE\right)^{-1}\right)[j,j]$=\texttt{trouble}, which is a much more precise measure that is directly related to the variable of interest and can also not summarize the whole situation.
+

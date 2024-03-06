@@ -1,0 +1,83 @@
+\babel@toc {english}{}\relax 
+\vspace *{13.mm}
+\contentsline {chapter}{\bfseries {Abstract}}{vii}{chapter*.3}%
+\vspace *{10mm}
+\contentsline {chapter}{\numberline {1}Introduction}{1}{chapter.1}%
+\contentsline {chapter}{\numberline {2}Methods}{3}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Linear regression models and least-squares estimator}{3}{section.2.1}%
+\contentsline {subsubsection}{Expectation}{4}{section*.5}%
+\contentsline {subsubsection}{Variance}{4}{section*.6}%
+\contentsline {subsubsection}{Distribution of the least-squares estimator}{5}{section*.7}%
+\contentsline {section}{\numberline {2.2}Transformation models}{5}{section.2.2}%
+\contentsline {section}{\numberline {2.3}Collinearity and its problems}{6}{section.2.3}%
+\contentsline {subsection}{\numberline {2.3.1}Equilibration of the design matrix}{6}{subsection.2.3.1}%
+\contentsline {subsection}{\numberline {2.3.2}Standardization of the design matrix - Correlation matrix}{7}{subsection.2.3.2}%
+\contentsline {subsection}{\numberline {2.3.3}Problems of collinearity}{8}{subsection.2.3.3}%
+\contentsline {section}{\numberline {2.4}Quantification of collinearity}{9}{section.2.4}%
+\contentsline {subsection}{\numberline {2.4.1}Variance decomposition proportions}{9}{subsection.2.4.1}%
+\contentsline {subsection}{\numberline {2.4.2}Why the condition number?}{10}{subsection.2.4.2}%
+\contentsline {subsection}{\numberline {2.4.3}An example}{10}{subsection.2.4.3}%
+\contentsline {subsection}{\numberline {2.4.4}Belsley's experiments}{12}{subsection.2.4.4}%
+\contentsline {section}{\numberline {2.5}Differences between \texttt {lm} and \texttt {tram::Lm}}{12}{section.2.5}%
+\contentsline {subsection}{\numberline {2.5.1}Maximum-Likelihood estimation for the linear regression model}{13}{subsection.2.5.1}%
+\contentsline {subsection}{\numberline {2.5.2}Maximum-Likelihood estimation for the transformation model equivalent (\texttt {tram::Lm})}{13}{subsection.2.5.2}%
+\contentsline {chapter}{\numberline {3}Introduction to the \texttt {BostonHousing2} data set}{15}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Hedonic housing prices and the demand for clean air}{15}{section.3.1}%
+\contentsline {subsection}{\numberline {3.1.1}The \textit {Basic equation} model of Harrison and Rubinfeld}{16}{subsection.3.1.1}%
+\contentsline {subsection}{\numberline {3.1.2}Collinearity diagnostics in the model}{18}{subsection.3.1.2}%
+\contentsline {section}{\numberline {3.2}Parametrization by \texttt {tram} vignette }{18}{section.3.2}%
+\contentsline {chapter}{\numberline {4}Sample size to mitigate collinearity}{21}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Harmful collinearity and the Wald statistics}{21}{section.4.1}%
+\contentsline {section}{\numberline {4.2}Partitioned regression}{22}{section.4.2}%
+\contentsline {section}{\numberline {4.3}Can the condition number explain everything?}{25}{section.4.3}%
+\contentsline {section}{\numberline {4.4}Sample size calculation}{25}{section.4.4}%
+\contentsline {section}{\numberline {4.5}Estimation of $\sigma ^2$}{27}{section.4.5}%
+\contentsline {section}{\numberline {4.6}$F$-distribution}{28}{section.4.6}%
+\contentsline {chapter}{\numberline {5}Simulation study}{33}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Aim}{36}{section.5.1}%
+\contentsline {section}{\numberline {5.2}Data generating process}{36}{section.5.2}%
+\contentsline {subsection}{\numberline {5.2.1}How to generate $\boldsymbol {X}$ with controlled collinearity?}{36}{subsection.5.2.1}%
+\contentsline {subsubsection}{Scaling factor (\texttt {scalefactor})}{36}{section*.32}%
+\contentsline {subsubsection}{Multivariate normal and transformation to uniform (\texttt {rmvuni})}{37}{section*.34}%
+\contentsline {subsubsection}{Multivariate normal (\texttt {rmvnorm})}{37}{section*.35}%
+\contentsline {subsubsection}{Collinearity over the correlation matrix}{38}{section*.36}%
+\contentsline {subsection}{\numberline {5.2.2}The outcome?}{39}{subsection.5.2.2}%
+\contentsline {subsection}{\numberline {5.2.3}Comparison of methods}{40}{subsection.5.2.3}%
+\contentsline {subsection}{\numberline {5.2.4}Sample size \texttt {n\_obs} for continuous variable of interest}{43}{subsection.5.2.4}%
+\contentsline {subsection}{\numberline {5.2.5}Range and grid of the collinearity magnitude}{45}{subsection.5.2.5}%
+\contentsline {section}{\numberline {5.3}Estimands}{46}{section.5.3}%
+\contentsline {section}{\numberline {5.4}Sample size needed}{46}{section.5.4}%
+\contentsline {section}{\numberline {5.5}Methods}{47}{section.5.5}%
+\contentsline {section}{\numberline {5.6}Performance measures}{47}{section.5.6}%
+\contentsline {section}{\numberline {5.7}Determining the number of simulations}{48}{section.5.7}%
+\contentsline {section}{\numberline {5.8}Handling exceptions}{48}{section.5.8}%
+\contentsline {chapter}{\numberline {6}Results: Simulation study}{49}{chapter.6}%
+\contentsline {section}{\numberline {6.1}Performance evaluation of the most important estimands}{49}{section.6.1}%
+\contentsline {subsection}{\numberline {6.1.1}Wald statistics: $\beta _1=-46.1$ and $\beta _2=-0.9$}{52}{subsection.6.1.1}%
+\contentsline {subsection}{\numberline {6.1.2}Wald statistics: $\beta _1=0$ and $\beta _2=0$}{53}{subsection.6.1.2}%
+\contentsline {subsection}{\numberline {6.1.3}Wald statistics difference vs. condition number: $\beta _1=-46.1$ and $\beta _2=-0.9$}{54}{subsection.6.1.3}%
+\contentsline {subsection}{\numberline {6.1.4}Wald statistics difference vs. condition number: $\beta _1=0$ and $\beta _2=0$}{54}{subsection.6.1.4}%
+\contentsline {subsection}{\numberline {6.1.5}Proportion of significant results: $\beta _1=-46.1$ and $\beta _2=-0.9$}{55}{subsection.6.1.5}%
+\contentsline {subsection}{\numberline {6.1.6}Proportion of significant results: $\beta _1=0$ and $\beta _2=0$}{56}{subsection.6.1.6}%
+\contentsline {subsection}{\numberline {6.1.7}Wald statistics ratio: $\beta _1=-46.1$ and $\beta _2=-0.9$}{57}{subsection.6.1.7}%
+\contentsline {subsection}{\numberline {6.1.8}Wald statistics ratio: $\beta _1=0$ and $\beta _2=0$}{57}{subsection.6.1.8}%
+\contentsline {subsection}{\numberline {6.1.9}Wald statistics difference vs. Wald statistics of \texttt {lm}: $\beta _1=-46.1$ and $\beta _2=-0.9$}{58}{subsection.6.1.9}%
+\contentsline {subsection}{\numberline {6.1.10}Wald statistics difference vs. Wald statistics of \texttt {lm}: $\beta _1=0$ and $\beta _2=0$}{59}{subsection.6.1.10}%
+\contentsline {section}{\numberline {6.2}Sample size correction}{60}{section.6.2}%
+\contentsline {subsection}{\numberline {6.2.1}Study design - Relative sample size needed: $\beta _1=-46.1$ and $\beta _2=-0.9$}{61}{subsection.6.2.1}%
+\contentsline {subsection}{\numberline {6.2.2}Study design - Relative sample size needed: $\beta _1=0$ and $\beta _2=0$}{62}{subsection.6.2.2}%
+\contentsline {chapter}{\numberline {7}Results: Collinearity fingerprint and graph}{63}{chapter.7}%
+\contentsline {section}{\numberline {7.1}Sample size calculation}{63}{section.7.1}%
+\contentsline {subsection}{\numberline {7.1.1}Parametrization of Harrison and Rubinfeld}{63}{subsection.7.1.1}%
+\contentsline {subsection}{\numberline {7.1.2}Non-transformed parametrization}{65}{subsection.7.1.2}%
+\contentsline {section}{\numberline {7.2}Collinearity fingerprint with bootstrap}{65}{section.7.2}%
+\contentsline {section}{\numberline {7.3}Collinearity zoom-in: Who is responsible?}{69}{section.7.3}%
+\contentsline {chapter}{\numberline {8}Discussion}{71}{chapter.8}%
+\contentsline {chapter}{\numberline {A}Appendix}{75}{appendix.A}%
+\contentsline {section}{\numberline {A.1}Correlation Invariance to linear operations}{75}{section.A.1}%
+\contentsline {section}{\numberline {A.2}Variance of the partitioned regression}{75}{section.A.2}%
+\contentsline {section}{\numberline {A.3}Approximate likelihood}{76}{section.A.3}%
+\contentsline {section}{\numberline {A.4}Difference between \texttt {tram::Coxph} and \texttt {survival::coxph}}{77}{section.A.4}%
+\contentsline {section}{\numberline {A.5}Computational reproducibility}{78}{section.A.5}%
+\vspace *{10mm}
+\contentsline {chapter}{\bfseries Bibliography}{81}{section*.62}%

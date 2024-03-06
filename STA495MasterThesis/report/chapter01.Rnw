@@ -1,0 +1,59 @@
+% LaTeX file for Chapter 01
+<<'preamble01',include=FALSE,cache=FALSE>>=
+library(knitr)
+opts_chunk$set(
+    fig.path='figure/ch01_fig', 
+    self.contained=FALSE,
+    cache=TRUE,
+    dev = "png" # reduced size!
+)
+@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Introduction}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Multiple linear regression techniques are well-established and easy-interpretable statistical tools that can incorporate many explanatory variables associated with one outcome variable. Many explanatory variables increase the chance of collinearity, which means that one of them is well explained by a linear combination of others. It is well known that collinearity has detrimental impacts on multiple linear regression estimands \citep{Graham2003}.
+Therefore, collinearity is extensively discussed in several statistical textbooks such as \cite{Cohen2013,Hocking2013,Neter1996,Tabachnick2012,Draper1998,Chatterjee2012,montgomery} and \cite{Belsley1991} just to mention a few.
+
+\cite{Belsley1991} came up with a diagnostic procedure that illustrates and quantifies the overall collinearity among the explanatory variables used in the model. Belsley also introduced a rule of thumb saying that condition indices, and therefore also condition numbers, over 30 calculated on the equilibrated design matrix mean that the collinearity at hand is consequential and should be avoided.
+\cite{Belsley1991}[page 129] says \textit{"If pressed to provide a value for a scaled condition index that divides large from small, 30 seems quite reasonable for many purposes. I am, however, always reluctant to give such figures because they are sometimes taken too seriously."}.
+Despite this warning, the rule of thumb is established in statistical literature and seems almost to be carved in stone as the rule can be read for example in \cite{Cohen2013, Hocking2013, Tabachnick2012,Chatterjee2012} but also \cite{wiki_multicoll} writes about condition numbers larger than 30 are a sign for severe multicollinearity. 
+
+Belsley further mentioned \citep{Belsley1991}[page 81] as a shortcoming in his work that his recommendations do not come from Monte Carlo experiments, and thus no inference about the distributional properties was made.
+To the best of our knowledge, no properly designed Monte Carlo simulation studies \citep{Burton2006, Morris2019, pawel2022} to that matter have been conducted.
+Belsley stated that his work provides a basis for any refinements that future work suggests.
+Therefore, the time has come to clarify the relevance of the cut-off of 30.
+
+
+With increasing computational power on the rise, developing and employing statistical models that make use of this power are more and more used. Transformation models that are able to flexibly transform the outcome to the distribution we assume, belong to models that feast on this computational power \citep{Hothorn2017, Hothorn2020, Siegfried2020}.
+Such transformation models are for example implemented in the \texttt{tram} package.
+While these models offer many benefits, their properties are often difficult to study as analytical results may not be possible or difficult to obtain \citep{Morris2019, Boulesteix2020}.
+In contrast, the least-squares method has an analytical solution that can be nicely studied also in terms of collinearity.
+While Belsley's collinearity diagnostic procedures and exploration of collinearity are based on models fitted by the least-squares method, novel statistical methods such as transformation models have not yet been discussed.
+For example, it is currently not known whether both, least-squares (\texttt{lm}) and transformation model equivalent (\texttt{tram::Lm}), react equally to collinearity.
+Moreover, it is unknown whether the same diagnostics apply for \texttt{tram::Lm} as to \texttt{lm}.
+Finally, it remains to be clarified whether other factors related to collinearity play an important role in the \texttt{tram::Lm} estimating procedure.
+
+To get reliable parameter estimates of statistical models, sample size calculations are necessary.
+These calculations help plan experiments and increase the probability of finding relevant effects, if they are true.
+Sample size calculations are well established for numerous different analyses where the aim is to design a study and quantify a certain effect of interest (e.g. \texttt{daewr} \cite{daewr},
+ \texttt{pwrss} \cite{pwrss},
+ \texttt{designsize} \cite{designsize},
+ \texttt{presize} \cite{presize},
+ \texttt{MKpower} \cite{MKpower},
+ \texttt{TrialSize} \cite{TrialSize},
+ \texttt{pwr} \cite{pwr}) or analysis targeting the overall modelling performance, which is for example the goal in prediction models (e.g. \texttt{pmsampsize} \cite{pmsampsize}).
+However, up to our knowledge, sample size calculations that adjust for collinearity and corresponding software implementations are missing. Thus, there is a need for software that adjusts for collinearity to optimize the study design. 
+
+To address these needs, we introduced some theoretical methods in Chapter~\ref{chap:methods}.
+We designed a Monte Carlo simulation study in Chapter~\ref{simstudy}.
+We developed procedures for sample size computation in Chapter~\ref{chap:two_way_anova} and applied these methods to the \texttt{BostonHousing2} data.
+Finally, we assured our work is reproducible by making the relevant components transparent and accessible for the public (see Appendix~\ref{sec:repro} for more details).
+
+This thesis clarifies the relevance of the cut-off of 30 on the detrimental impact of collinearity.
+It also demonstrates the difference in the impact of collinearity on \texttt{lm} and \texttt{tram::Lm} estimating procedures.
+Moreover, it develops and implements functions for sample size computation, collinearity fingerprint, and graphical collinearity assessment in an open-source \texttt{Collinearity} package.
+Finally, these functions are applied to a real-world data, providing well-explained hands-on examples.
+
+

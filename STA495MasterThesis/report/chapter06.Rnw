@@ -1,0 +1,434 @@
+% LaTeX file for Chapter 06
+<<'preamble06',include=FALSE, cache=FALSE>>=
+# clear memory
+rm(list = ls())
+library(knitr)
+library(tidyverse)
+opts_chunk$set(
+    fig.path='figure/ch06_fig', 
+    self.contained=FALSE,
+    cache=TRUE, # reduced time if TRUE
+    dev = "png" # reduced size!
+)
+@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Results: Simulation study}\label{results}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+<<echo=F,results='hide'>>=
+# Load files
+links <- list(
+           "data/na_sim.rds"
+          ,"data/runtime_total.txt"
+          ,"results_simulation/figure/simres_wald11-1.png"
+          ,"results_simulation/figure/simres_wald21-1.png"
+          ,"results_simulation/figure/simres_wald31-1.png"
+          ,"results_simulation/figure/simres_wald101-1.png"
+          ,"results_simulation/figure/simres_wald111-1.png"
+          ,"results_simulation/figure/simres_wald121-1.png"
+          ,"results_simulation/figure/simana11-1.png"
+          ,"results_simulation/figure/simana41-1.png"
+          ,"results_simulation/figure/simres_prop11-1.png"
+          ,"results_simulation/figure/simres_prop21-1.png"
+          ,"results_simulation/figure/simres_prop31-1.png"
+          ,"results_simulation/figure/simres_prop101-1.png"
+          ,"results_simulation/figure/simres_prop111-1.png"
+          ,"results_simulation/figure/simres_prop121-1.png"
+          ,"results_simulation/figure/simres_bivar11-1.png"
+          ,"results_simulation/figure/simres_bivar41-1.png"
+          ,"results_simulation/figure/simdiffvswald111-1.png"
+          ,"results_simulation/figure/simdiffvswald112-1.png"
+          ,"results_simulation/figure/simdiffvswald411-1.png"
+          ,"results_simulation/figure/simdiffvswald412-1.png"
+          ,"results_simulation/figure/simres_nrel1-1.png"
+          ,"results_simulation/figure/simres_nrel2-1.png"
+          ,"results_simulation/figure/simres_nrel3-1.png"
+          ,"results_simulation/figure/simres_nrel10-1.png"
+          ,"results_simulation/figure/simres_nrel11-1.png"
+          ,"results_simulation/figure/simres_nrel12-1.png"
+)
+
+
+lapply(links,function(x){
+    if(file.exists(paste0("./../../../simulation/",x))){
+    #print("Found parameters in the other repository! Will copy them!")
+      
+    to <- unlist(strsplit(x,split="/"))
+    to <- to[length(to)]
+    invisible(
+      file.copy(from = paste0("./../../../simulation/",x), to = paste0("../fromsim/",to),overwrite = TRUE)
+    )
+    }else if(file.exists(paste0("../fromsim/",x)) ){
+    #print("Found parameters here!")
+    }
+})
+
+
+
+# load NA list
+na_sim <- readRDS("../fromsim/na_sim.rds")
+rt <- read.table("../fromsim/runtime_total.txt")
+@
+
+This chapter provides the results of the simulation study developed in Section~\ref{simstudy}. Only for \texttt{n\_need} aspect of the simulation \Sexpr{na_sim$no_na} out of \Sexpr{na_sim$no_exp} experimental conditions yield NA values that were not expected, and thus we will not further investigate these issues. The simulation was executed with only one core and took approximately \Sexpr{round(rt,1)} hours to run.
+This process can be accelerated using parallelized computing. An example of how to do this is provided in the file (\url{https://bitbucket.org/jsepin/simulation/src/master/simulation_total.R}) with the commented-out simulation.
+
+For example, this simulation can be performed in approximately 50 minutes when using 64 cores.
+However, we did not use parallelized computing as the results also depend on how many cores are at work and thus depending on the resources available, not everyone may be able to reproduce the results in this master thesis.
+
+This report focuses only on two experimental conditions $\beta_1=-46.1,\beta_2=-0.9$ and $\beta_1=0,\beta_2=0$ and three estimands, namely the Wald statistics, proportion of significant results, and \texttt{n\_need}.
+This is because the Wald statistics represents the most important estimand which quantifies what we define as harmful.
+All remaining results are provided online (\url{https://bitbucket.org/jsepin/simulation/src/master/results_simulation/results_simulation.pdf}).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Performance evaluation of the most important estimands}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Figures~\ref{fig:simres_wald1} and \ref{fig:simres_wald2} show on the $y$-axis the Wald statistics and on the $x$-axis the condition number for both, \texttt{lm} and \texttt{tram::Lm}.
+The condition number ranges between 0 and 60.
+The quantiles that are obtained by the moving quantile procedure (Section~\ref{sec:performance}) summarize the distribution of Wald statistics values.
+Due to two-sided hypothesis testing, points laying inside (-1.96, 1.96) are interpreted as non-significant and colored as a red area.
+Points laying in the white area are said to be significant and with an effect estimate that is negative, which is correct. On the other hand, Wald statistic values in the yellow area are thought to be significant, but the sign of the effect is positive and thus wrong.
+In Figure~\ref{fig:simres_wald1}, where we have a true signal ($\beta_1=-46.1,\beta_2=-0.9$), we see that with higher collinearity, quantified by the condition number, Wald statistics move more and more into the red area, resulting in a non-detection. This tendency is the same for both \texttt{lm} and \texttt{tram::Lm} but is even more pronounced for higher noise \texttt{s\_y} and low sample sizes \texttt{n\_obs}. What we also see is that the tendency to have points laying in the yellow area is increased with low sample size and high noise. 
+This problem gets even better visible in Figure~\ref{fig:simres_wald2} where there is no signal ($\beta_1=0,\beta_2=0$).
+In this figure, the Wald statistics distribution stays quite constant over the whole range of the condition number. But, with lower sample size and higher noise, more points lay outside the red area.
+
+Figures~\ref{fig:simres_differencevscondu1} and \ref{fig:simres_differencevscondu2} plot the Wald statistic differences against the condition number which is possible due to the paired design.
+It gets visible that with higher condition number, the difference gets smaller.
+The difference seems to increase however with less noise of the data (\texttt{s\_y}), and the difference appears more consistent with increasing sample sizes.
+
+Figures~\ref{fig:simres_prop1} and \ref{fig:simres_prop2} elaborate on the correct and incorrect proportion of significant results. We see here as well that with higher noise, lower sample size and higher collinearity, the proportion of correct significant results decreases. In addition, we note here that as the proportion of correct results decreases, the proportion of incorrect significant results increases.
+And further, the figures indicate that \texttt{tram::Lm} has either way more the tendency to have significant results.
+
+Figures~\ref{fig:simres_bivar1} and \ref{fig:simres_bivar2} compare the Wald statistics of \texttt{lm} and \texttt{tram::Lm} as a ratio. 
+If both methods yield the same Wald statistics, points would lay on the red line, which is a straight line with a slope of 1.
+But, we see that the Wald statistics of \texttt{lm} tends to be much larger than for \texttt{tram::Lm}.
+
+Figures~\ref{fig:simres_differencevslm1} and \ref{fig:simres_differencevslm2} also compare the Wald statistics but as a difference and not as a ratio and plots this difference against the Wald statistics of the \texttt{lm} method.
+This means that if Wald statistics values are the same, points would lay on the horizontal line at $y=0$.
+Similarly to Figures~\ref{fig:simres_bivar1} and \ref{fig:simres_bivar2} we note that \texttt{lm} tends in general to have much larger Wald statistics values than \texttt{tram::Lm}.
+But this effect seems to be inverted for Wald statistics of lower magnitude, and therefore leads to the fact that \texttt{tram::Lm} has more frequently results that are interpreted as significant.
+To make this even clearer, the area where \texttt{lm} and  \texttt{tram::Lm} would have Wald statistics values that are interpreted differently in terms of significance is colored in blue. This represents the area between:
+\begin{itemize}
+\item For $\hat{t}_\text{lm}<0$: $-q_{1-\alpha/2,Z}(\approx 1.96)$ and the function $f(\hat{t}_\text{lm})=-q_{1-\alpha/2,Z} -\hat{t}_\text{lm}$
+\item For $\hat{t}_\text{lm}>0$: $\textcolor{white}{-}q_{1-\alpha/2,Z}(\approx 1.96)$ and the function $f(\hat{t}_\text{lm})=\textcolor{white}{-}q_{1-\alpha/2,Z} -\hat{t}_\text{lm}$
+\end{itemize}
+Since the differences are only in the lower-left and upper-right area, they are interpreted as the zone where \texttt{lm} would not have significant conclusions but \texttt{tram::Lm} does.
+However, it seems to be the case that with higher sample sizes, the difference in Wald statistics values vanishes. This behavior appears to be very similar for both conditions of $\beta_1$.
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\vfill
+\newpage
+\subsection{Wald statistics: $\beta_1=-46.1$ and $\beta_2=-0.9$}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{figure}[H]
+\centering
+\begin{subfigure}[b]{1\textwidth}
+\vspace*{-0.5cm}
+\centering
+\includegraphics[width=0.85\textwidth]{../fromsim/simres_wald11-1.png}
+\end{subfigure}
+\begin{subfigure}[b]{1\textwidth}
+\vspace*{-0.9cm}
+\centering
+\includegraphics[width=0.85\textwidth]{../fromsim/simres_wald21-1.png}
+\end{subfigure}
+\begin{subfigure}[b]{1\textwidth}
+\vspace*{-0.9cm}
+\centering
+\includegraphics[width=0.85\textwidth]{../fromsim/simres_wald31-1.png}
+\end{subfigure}
+\vspace*{-1cm}
+\caption{Wald statistics versus the condition number. The red shaded area represents Wald statistics between -1.96 and 1.96 which are non-detected signals and thus harmful. Points in the yellow shaded area are even more troublesome since they mean there is a detection, but the signal is incorrect. The frame of the plots are restricted to have maximum $y$-axis range between -10 and 10. Points laying outside are placed at the border and visualized as triangles.}
+\label{fig:simres_wald1}
+\end{figure}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\newpage
+\vspace*{-1cm}
+\subsection{Wald statistics: $\beta_1=0$ and $\beta_2=0$}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{figure}[H]
+\centering
+\begin{subfigure}[b]{1\textwidth}
+\vspace*{-0.5cm}
+\centering
+\includegraphics[width=0.85\textwidth]{../fromsim/simres_wald101-1.png}
+\end{subfigure}
+\begin{subfigure}[b]{1\textwidth}
+\vspace*{-0.9cm}
+\centering
+\includegraphics[width=0.85\textwidth]{../fromsim/simres_wald111-1.png}
+\end{subfigure}
+\begin{subfigure}[b]{1\textwidth}
+\vspace*{-0.9cm}
+\centering
+\includegraphics[width=0.85\textwidth]{../fromsim/simres_wald121-1.png}
+\end{subfigure}
+\vspace*{-1cm}
+\caption{Wald statistics versus the condition number. The red shaded area represents Wald statistics between -1.96 and 1.96 which are non-detected signals and thus harmful. Points in the yellow shaded area are even more troublesome since they mean there is a detection, but the signal is incorrect. The frame of the plots are restricted to have maximum $y$-axis range between -10 and 10. Points laying outside are placed at the border and visualized as triangles.}
+\label{fig:simres_wald2}
+\end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\newpage
+\vspace*{-1cm}
+\subsection{Wald statistics difference vs. condition number: $\beta_1=-46.1$ and $\beta_2=-0.9$}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{figure}[H]
+\vspace*{-0.5cm}
+\centering
+\includegraphics[width=0.85\textwidth]{../fromsim/simana11-1.png}
+\vspace*{-0.5cm}
+\caption{Wald statistics differences plotted versus the condition number and colored by the Wald statistics of the \texttt{tram::Lm} method. See description in Figure~\ref{fig:simres_differencevscondu2}.}
+\label{fig:simres_differencevscondu1}
+\end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\newpage
+%\vspace*{-1cm}
+\subsection{Wald statistics difference vs. condition number: $\beta_1=0$ and $\beta_2=0$}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{figure}[H]
+\centering
+\vspace*{-0.5cm}
+\centering
+\includegraphics[width=0.85\textwidth]{../fromsim/simana41-1.png}
+\vspace*{-0.5cm}
+\caption{Wald statistics differences plotted versus the condition number and colored by the Wald statistics of the \texttt{tram::Lm} method. It seems like that the difference between the Wald statistics values decreases with increasing condition number and increasing noise \texttt{s\_y}. In addition, with higher sample sizes, the difference seems to be much more stable.}
+\label{fig:simres_differencevscondu2}
+\end{figure}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\newpage
+\vspace*{-1cm}
+\subsection{Proportion of significant results: $\beta_1=-46.1$ and $\beta_2=-0.9$}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{figure}[H]
+\begin{subfigure}[b]{1\textwidth}
+\vspace*{-0.5cm}
+\centering
+\includegraphics[width=0.85\textwidth]{../fromsim/simres_prop11-1.png}
+\end{subfigure}
+\begin{subfigure}[b]{1\textwidth}
+\vspace*{-0.9cm}
+\centering
+\includegraphics[width=0.85\textwidth]{../fromsim/simres_prop21-1.png}
+\end{subfigure}
+\begin{subfigure}[b]{1\textwidth}
+\vspace*{-0.9cm}
+\centering
+\includegraphics[width=0.85\textwidth]{../fromsim/simres_prop31-1.png}
+\end{subfigure}
+\vspace*{-0.9cm}
+\caption{Obtained proportion of Wald statistics with correctly detected effect estimates ($\hat{t}_{ij}\leq -1.96$) and incorrectly detected effect estimates ($\hat{t}_{ij}\geq 1.96$). The proportions are calculated similarly to the moving quantile procedure: We gather 100 observations, calculate the proportions and the location thereof determined by the median condition number. Then the window moves forward by discarding 10 observations but adding the next 10 and computes the proportion and location again. This procedure is then done until the end of the frame.}
+\label{fig:simres_prop1}
+\end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\newpage
+\vspace*{-1cm}
+\subsection{Proportion of significant results: $\beta_1=0$ and $\beta_2=0$}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{figure}[H]
+\begin{subfigure}[b]{1\textwidth}
+\vspace*{-0.5cm}
+\centering
+\includegraphics[width=0.85\textwidth]{../fromsim/simres_prop101-1.png}
+\end{subfigure}
+\begin{subfigure}[b]{1\textwidth}
+\vspace*{-0.9cm}
+\centering
+\includegraphics[width=0.85\textwidth]{../fromsim/simres_prop111-1.png}
+\end{subfigure}
+\begin{subfigure}[b]{1\textwidth}
+\vspace*{-0.9cm}
+\centering
+\includegraphics[width=0.85\textwidth]{../fromsim/simres_prop121-1.png}
+\end{subfigure}
+\vspace*{-0.9cm}
+\caption{Obtained proportion of Wald statistics with correctly detected effect estimates ($\hat{t}_{ij}\leq -1.96$) and incorrectly detected effect estimates ($\hat{t}_{ij}\geq 1.96$). In the situation where $\beta_j=0$, correct means a non-significant result ($-1.96<\hat{t}_{ij}< 1.96$). The proportions are calculated similarly to the moving quantile procedure: We gather 100 observations, calculate the proportions and the location thereof determined by the median condition number. Then the window moves forward by discarding 10 observations but adding the next 10 and computes the proportion and location again. }
+\label{fig:simres_prop2}
+\end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\newpage
+\vspace*{-1cm}
+\subsection{Wald statistics ratio: $\beta_1=-46.1$ and $\beta_2=-0.9$}\label{sec:compwald1}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{figure}[H]
+\vspace*{-0.5cm}
+\centering
+\includegraphics[width=0.85\textwidth]{../fromsim/simres_bivar11-1.png}
+\vspace*{-0.5cm}
+\caption{Direct comparison of Wald statistics. See description in Figure~\ref{fig:simres_bivar2}.}
+\label{fig:simres_bivar1}
+\end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\newpage
+%\vspace*{-1cm}
+\subsection{Wald statistics ratio: $\beta_1=0$ and $\beta_2=0$}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{figure}[H]
+\centering
+\vspace*{-0.5cm}
+\centering
+\includegraphics[width=0.85\textwidth]{../fromsim/simres_bivar41-1.png}
+\vspace*{-0.5cm}
+\caption{Direct comparison of Wald statistics resulting from the two different methods. Due to the paired design we can directly compare the two Wald statistics and if they are the very same, the points lay on the red diagonal. To have an impression about the distribution of the points, marginal densities are added at the sides. In general, it seems like that \texttt{lm} has larger Wald statistics than \texttt{tram::Lm} especially when $\hat{t}_\texttt{lm}$ is large. On the other hand, if  $\hat{t}_\texttt{lm}$ is low, $\hat{t}_\texttt{tram::Lm}$ tends to be larger in magnitude.}
+\label{fig:simres_bivar2}
+\end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\newpage
+\vspace*{-1cm}
+\subsection{Wald statistics difference vs. Wald statistics of \texttt{lm}: $\beta_1=-46.1$ and $\beta_2=-0.9$}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{figure}[H]
+\begin{subfigure}[b]{1\textwidth}
+\vspace*{-0.5cm}
+\centering
+\includegraphics[width=0.95\textwidth]{../fromsim/simdiffvswald111-1.png}
+\end{subfigure}
+\begin{subfigure}[b]{1\textwidth}
+\vspace*{-0.3cm}
+\centering
+\includegraphics[width=0.95\textwidth]{../fromsim/simdiffvswald112-1.png}
+\end{subfigure}
+\vspace*{-0.9cm}
+\caption{Wald statistics differences plotted versus the Wald statistics of the \texttt{lm} method and colored by the condition number in the upper plot. Comparison of all panels in the lower plot, but now colored with respect to the panels. The light blue area represents the area where \texttt{lm} and \texttt{tram::Lm} yield Wald statistics values that are interpreted differently in terms of significance for the generally used type 1 error rate of $\alpha$=0.05 ($f(\hat{t}_\text{lm})=\text{sign}(\hat{t}_\text{lm})\cdot q_{1-\alpha/2,Z} -\hat{t}_\text{lm}$). It seems to be the case that \texttt{tram::Lm} yields Wald statistics values that are more frequently interpretable as significant, independent of the direction. This effect seems to vanish with increasing sample size. The lower plot shows that the curves do not differ too much with the noise of the data (\texttt{s\_y}). However, the upper plot reveals that the condition number is then different and therefore hints towards the fact that the same Wald statistics can be obtained by different combinations of, here, \texttt{s\_y} and $\kappa\left(\bE\right)$ values. }
+\label{fig:simres_differencevslm1}
+\end{figure}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\newpage
+\vspace*{-1cm}
+\subsection{Wald statistics difference vs. Wald statistics of \texttt{lm}: $\beta_1=0$ and $\beta_2=0$}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{figure}[H]
+\begin{subfigure}[b]{1\textwidth}
+\vspace*{-0.5cm}
+\centering
+\includegraphics[width=0.95\textwidth]{../fromsim/simdiffvswald411-1.png}
+\end{subfigure}
+\begin{subfigure}[b]{1\textwidth}
+\vspace*{-0.3cm}
+\centering
+\includegraphics[width=0.95\textwidth]{../fromsim/simdiffvswald412-1.png}
+\end{subfigure}
+\vspace*{-0.9cm}
+\caption{Wald statistics differences plotted versus the Wald statistics of the \texttt{lm} method and colored by the condition number in the upper plot. Comparison of all panels in the lower plot, but now colored with respect to the panels. The light blue area represents the area where \texttt{lm} and \texttt{tram::Lm} yield Wald statistics values that are interpreted differently in terms of significance for the generally used type 1 error rate of $\alpha$=0.05 ($f(\hat{t}_\text{lm})=\text{sign}(\hat{t}_\text{lm})\cdot q_{1-\alpha/2,Z} -\hat{t}_\text{lm}$). It seems to be the case that \texttt{tram::Lm} yields Wald statistics values that are more frequently interpretable as significant, independent of the direction. This effect seems to vanish with increasing sample size. The lower plot shows that the curves do not differ too much with the noise of the data (\texttt{s\_y}). However, the upper plot reveals that the condition number is then different and therefore hints towards the fact that the same Wald statistics can be obtained by different combinations of, here, \texttt{s\_y} and $\kappa\left(\bE\right)$ values. }
+\label{fig:simres_differencevslm2}
+\end{figure}
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\section{Sample size correction}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Figure~\ref{fig:simres_nrel1} and \ref{fig:simres_nrel2} show the relative number of observations (sample size needed divided by the current sample size) that is needed to reach the power of 80\% with the current collinearity magnitude. The needed sample size is determined by the function \texttt{Collinearity::copowerlm} and works so far only for the \texttt{lm} method. The relevant effect estimate for $\beta_1$ that we want to find, given it is there, is $\beta_1=-46.1$ and is in both figures the same, leading to very similar dynamics. We see that with increasing collinearity and increasing noise in the form of large \texttt{s\_y}, the needed sample size gets larger. Furthermore, the lower the current sample size, the more variability in the predicted sample size needed.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%\vspace*{-1cm}
+\newpage
+\subsection{Study design - Relative sample size needed: $\beta_1=-46.1$ and $\beta_2=-0.9$}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{figure}[H]
+\centering
+\begin{subfigure}[b]{1\textwidth}
+\vspace*{-0.5cm}
+\includegraphics[width=1\textwidth]{../fromsim/simres_nrel1-1.png}
+\end{subfigure}
+\begin{subfigure}[b]{1\textwidth}
+\vspace*{-1cm}
+\includegraphics[width=1\textwidth]{../fromsim/simres_nrel2-1.png}
+\end{subfigure}
+\begin{subfigure}[b]{1\textwidth}
+\vspace*{-1cm}
+\includegraphics[width=1\textwidth]{../fromsim/simres_nrel3-1.png}
+\end{subfigure}
+\caption{Number of observations needed to reach the power of 80\% with the given collinearity magnitude expressed by the condition number. It gets visible that the condition number does not uniquely define the collinearity within $\X$ as no straight line is plotted. Further, we see that with higher condition number, but also with higher \texttt{s\_y}, the needed sample size increases. We also note, that with very low sample sizes, the uncertainty of predicted needed sample size gets very large.}
+\label{fig:simres_nrel1}
+\end{figure}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\newpage
+\vspace*{-1cm}
+\subsection{Study design - Relative sample size needed: $\beta_1=0$ and $\beta_2=0$}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{figure}[H]
+\centering
+\begin{subfigure}[b]{1\textwidth}
+\vspace*{-0.5cm}
+\includegraphics[width=1\textwidth]{../fromsim/simres_nrel10-1.png}
+\end{subfigure}
+\begin{subfigure}[b]{1\textwidth}
+\vspace*{-1cm}
+\includegraphics[width=1\textwidth]{../fromsim/simres_nrel11-1.png}
+\end{subfigure}
+\begin{subfigure}[b]{1\textwidth}
+\vspace*{-1cm}
+\includegraphics[width=1\textwidth]{../fromsim/simres_nrel12-1.png}
+\end{subfigure}
+\caption{Number of observations needed to reach the power of 80\% with the given collinearity magnitude expressed by the condition number. It gets visible that the condition number does not uniquely define the collinearity within $\X$ as no straight line is plotted. Further, we see that with higher condition number, but also with higher \texttt{s\_y}, the needed sample size increases. We also note, that with very low sample sizes, the uncertainty of predicted needed sample size gets very large. The results are very much the same as in Figure~\ref{fig:simres_nrel1} since the effect the sample size calculation is based on, is the same and does not matter if it is actually there or not.}
+\label{fig:simres_nrel2}
+\end{figure}
+
+
+
+<<parallel, echo=F, eval = F>>=
+library(parallel)
+?mc.reset.stream
+parallel::detectCores()
+
+RNGkind("L'Ecuyer-CMRG")
+set.seed(1)
+mc.reset.stream()
+r1 <- mclapply(as.list(c(1:8)),mc.cores = 4, mc.set.seed = T,#mc.preschedule = F,
+               mc.preschedule =T,#F: is for different cores reproducible (except for 1)!
+               function(x) {mean(rnorm(n = 100, mean = x) + rnorm(n = 100, mean = x) )} )
+r1 <- do.call("rbind", r1)
+r1
+set.seed(1)
+mc.reset.stream()
+r2 <- mclapply(as.list(c(1:8)),mc.cores = 3, mc.set.seed = T,
+               mc.preschedule = T,
+               function(x) {mean(rnorm(n = 100, mean = x) + rnorm(n = 100, mean = x))} )
+r2 <- do.call("rbind", r2)
+r2
+
+
+RNGkind("L'Ecuyer-CMRG")
+set.seed(1)
+#mc.reset.stream()
+r3 <- lapply(as.list(c(1:4)),
+               function(x) {mean(rnorm(n = 100, mean = x)#+rnorm(n = 100, mean = x)
+                                 )} )
+r3 <- do.call("rbind", r3)
+r3
+
+#RNGkind()
+
+library(future.apply)
+plan(multicore, workers = 2);
+set.seed(1)
+r4 <- future_lapply(as.list(c(1:4)),future.seed=T,
+               function(x) {mean(rnorm(n = 100, mean = x)+rnorm(n = 100, mean = x)
+                                 )} )
+r4 <- do.call("rbind", r4)
+r4
+all.equal(r3,r4)
+
+plan(multicore, workers = 4);
+set.seed(1)
+r5 <- future_lapply(as.list(c(1:4)),future.seed=TRUE,
+               function(x) {mean(rnorm(n = 100, mean = x)+rnorm(n = 100, mean = x))} )
+r5 <- do.call("rbind", r5)
+r5
+all.equal(r5,r4)
+
+
+@
+
+

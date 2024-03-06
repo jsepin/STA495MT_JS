@@ -1,0 +1,289 @@
+% LaTeX file for Chapter 04 Application
+
+<<'preamble03',include=FALSE, cache=FALSE>>=
+# clear memory
+rm(list = ls())
+library(knitr)
+opts_chunk$set(
+    fig.path='figure/ch03_fig', 
+    self.contained=FALSE,
+    cache=TRUE, # reduced time if TRUE
+    dev = "png" # reduced size!
+)
+@
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Introduction to the \texttt{BostonHousing2} data set}\label{chap:boston_intro}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+In the following chapters, we will take use of a real world data set to simulate a system that is close to reality. For this, we take the \texttt{BostonHousing2} data set that is provided in the \texttt{mlbench} package. The data originally comes from \cite{Harrison1978} who investigated the willingness to pay for clean air in terms of housing prices for the Boston metropolitan area.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Hedonic housing prices and the demand for clean air}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\cite{Harrison1978} took the concentration of nitrogen oxides (\texttt{nox}) as a surrogate for air pollution and thus serves as the variable of interest. In addition, they assumed that housing prices are not only based on the corresponding amount of air pollution but consider also other properties such as housing quality and other neighbor characteristics. Therefore, they also included several other variables into the model. A short description of the variables is visible in Table~\ref{tab:variable_boston} and summary statistics thereof are given in Table~\ref{tab:to_boston}. 
+
+\begin{table}[H]\begin{center}
+\caption{Description of the variables provided in the \texttt{BostonHousing2} data set.}\label{tab:variable_boston}
+<<variable_boston, results = "asis", echo = FALSE>>=
+library(xtable)
+vars <- c("cmedv","rm","age","B","lstat","crim","zn","indus","tax","ptratio","dis","rad","chas","nox" )
+def <- c("Corrected median value of owner-occupied homes (outcome)",
+         "Average number of rooms in owner units",
+         "Proportion of owner units built prior to 1940",
+         "Black proportion of population",
+         "Proportion of population that is lower status 1/2 (proportion of adults without some high school education and proportion of male workers classified as laborers)",
+         "Crime rate by town",
+         "Proportion of a town's residential land zoned for lots greater than 25,000 square feet",
+         "Proportion nonretail business acres per town",
+         "Full-value property-tax rate per USD 10,000",
+         "Pupil-teacher ratio by town school district",
+         "Weighted distances to five Boston employment centres",
+         "Index of accessibility to radial highways",
+         "Charles River dummy variable (= 1 if tract bounds river; 0 otherwise)",
+         "Nitric oxides concentration (parts per 100 million)" )
+
+
+xtab1 <- xtable(cbind("Variable"=vars, "Definition"=def),align = "lp{15mm}p{100mm}")
+print(xtab1, showAllLevels = TRUE, booktabs = TRUE,size = "footnotesize",
+      include.rownames=FALSE, printToggle = FALSE, noSpaces = TRUE, floating = FALSE)
+
+@
+\end{center}\end{table}
+
+Note: The data set that is loaded by executing \texttt{data(BostonHousing2)} in \textsf{R} is not exactly the same as in the paper. More specifically, some transformations have to be applied:
+\begin{itemize}
+\item \texttt{cmedv}: Is originally in USD (\texttt{BostonHousing2\$cmedv<-BostonHousing2\$cmedv*1000})
+\item \texttt{nox}: Is originally in parts per \textit{hundred} million (\texttt{BostonHousing2\$nox<-BostonHousing2\$nox*10})
+\item \texttt{lstat}: Is originally a \textit{proportion}  (0-1) (\texttt{BostonHousing2\$lstat<-BostonHousing2\$lstat/100})
+\item \texttt{B}: The used variable in the model is \texttt{b} which is also provided in the \texttt{BostonHousing2} data set. \texttt{b} is constructed from \texttt{B} as $\texttt{b}=1000(\texttt{B}-0.63)^2$. However, the back-transformation does not match \texttt{B} from the original publication but the data set is still complete.
+\end{itemize}
+
+<<echo=F>>=
+library(mlbench); library(Collinearity)
+data("BostonHousing2")
+# reconstruct original
+BostonHousing2$cmedv <- BostonHousing2$cmedv*1000
+BostonHousing2$nox <- BostonHousing2$nox*10
+BostonHousing2$lstat <- BostonHousing2$lstat/100
+
+BostonHousing2$b <- BostonHousing2$b /1000
+BostonHousing2$B <- sqrt(BostonHousing2$b) + 0.63
+@
+
+\begin{table}[H]\begin{center}
+\caption{Descriptive statistics of the variables in the \texttt{BostonHousing2} data set coming from \Sexpr{nrow(BostonHousing2)} census track records. The data set contains no missing values and is therefore complete.}\label{tab:to_boston}
+<<to_boston, results = "asis", echo = FALSE>>=
+library(tableone);library(xtable); library(stringr)
+vars <- c("cmedv","rm","age","B","lstat","crim","zn","indus","tax","ptratio","dis","rad","chas","nox" )
+tab1 <- CreateTableOne(vars  = vars, data = BostonHousing2,
+                       factorVars = c("chas"),
+                       addOverall = FALSE)
+
+
+missing_perc <- sum(is.na(BostonHousing2[,match(vars,colnames(BostonHousing2))]))*100
+missing_perc <- c("Total"=missing_perc,
+                  apply(BostonHousing2[,match(vars,
+                                      colnames(BostonHousing2))],2,
+                      function(x) mean(is.na(x))*100)
+)
+
+dd <- BostonHousing2[,match(vars, colnames(BostonHousing2))]
+further_sum <- lapply( dd,  function(x) {
+              if(is.numeric(x)){
+                out <- c(mean(is.na(x))*100, min(x),median(x),max(x))
+              }else{
+                out <- c(mean(is.na(x))*100,NA,NA,NA)
+              }
+              return(out)
+                      }  )
+further_sum <- do.call("rbind",further_sum)
+colnames(further_sum) <- c("Missing (%)", "Min", "Median", "Max")
+xtab1 <- print(tab1,showAllLevels = F, printToggle = FALSE, noSpaces = TRUE)
+xtab1 <- cbind(str_remove(rownames(xtab1)[-1], fixed(" (mean (SD))")),
+               xtab1[-1,], round(further_sum,2))
+rownames(xtab1) <- NULL
+colnames(xtab1)[1:2] <- c("Variable", "Mean (SD)")
+xtab1 <- xtable(xtab1)
+print(xtab1, showAllLevels = TRUE, booktabs = TRUE,size = "footnotesize",
+      include.rownames=FALSE, printToggle = FALSE, noSpaces = TRUE, floating = FALSE)
+@
+\end{center}\end{table}
+
+%====================================================
+\vspace{-0.7cm}
+\subsection{The \textit{Basic equation} model of Harrison and Rubinfeld}\label{sec:basiceqboston}
+%====================================================
+
+\cite{Harrison1978} modeled housing prices with the model visible in \textsf{R}-Code~\ref{code:boston}.
+\begin{program}[H]
+<<eval = F>>=
+mpaper <- lm(data = BostonHousing2, log(cmedv) ~ I(nox^2) +  I(rm^2) + age +
+               log(dis) + log(rad) + tax + ptratio + b + log(lstat) + crim +
+               zn + indus + chas )
+@
+\caption{\textit{Basic equation} formula to model housing prices.}\label{code:boston}
+\end{program}
+
+<<reg_bo, results = "asis",echo=FALSE>>=
+mpaper <- lm(data = BostonHousing2, log(cmedv) ~ I(nox^2) +  I(rm^2) + age + log(dis) + log(rad) + tax + ptratio + b + log(lstat) + crim + zn + indus + chas )
+cond_nu <- max(Collinearity::Var_decom_mat.lm(mpaper, equilibration=TRUE)[,"cond_ind"])
+# printing results
+library(biostatUZH);library(xtable)
+tableRegression(mpaper, stats = c("estimate", "ci.95","t.value", "p.value"),
+                col.nam = c("$\\hat\\beta$", "95\\% confidence interval",
+                            "$t$-value", "$p$-value"),
+                caption = 'Analyzing Boston Housing prices with the multiple linear regression model as specified in \\cite{Harrison1978} with the \\textit{Basic equation}. Outcome variable is the (corrected) median value of the owner occupied homes in USD (\\texttt{log(cmedv)}) on the logarithmic scale. \\texttt{chas1} represents the effect when moving from the reference, meaning that the house does not bound at the river (0), to the case when it does (1).',
+                caption.placement = "top",
+                label = "tab:reg_bo", booktabs = TRUE)
+@
+
+The output of the model is visible in Table~\ref{tab:reg_bo} and matches well the results provided in the original publication. Resulting from the \textit{Basic equation} (\textsf{R}-Code~\ref{code:boston}) model is, that a one unit increase in \texttt{nox$^2$} (\texttt{nox}: Nitrogen oxide concentration in pphm) leads to an increase in log(cmedv) of \Sexpr{round(summary(mpaper)$coef[2,1],4)} with 95\% confidence interval of (\Sexpr{round(confint(mpaper)[2,],4)}).
+
+<<calc_nox,echo=F>>=
+# Calculating Predictions and Difference
+dd_pred  <- t(colMeans(model.matrix(mpaper)))
+colnames(dd_pred) <- colnames(model.matrix(mpaper))
+dd_pred <- dd_pred[rep(1,2),]
+dd_pred[,"I(nox^2)"] <- (sqrt(dd_pred[,"I(nox^2)"]) + 0:(nrow(dd_pred)-1) )^2
+beta <- cbind(coef(mpaper),coef(mpaper),coef(mpaper))
+beta["I(nox^2)", c(1,3)] <- confint(mpaper)["I(nox^2)",]
+hat_log_cmedv <- dd_pred %*% beta
+dd_pred <- data.frame(dd_pred, hat_log_cmedv, exp(hat_log_cmedv))
+@
+
+What this value actually means is not trivial due to the non-linearity in the equation. It means that when we set all explanatory variables as they are used in the model to their respective mean and then increase \texttt{nox}, on the original level, for one pphm (part per hundred million), then the change in the original housing value \textit{increases} by \Sexpr{round((apply(exp(hat_log_cmedv),2, diff)[2]),3)} (from \Sexpr{round((apply(exp(hat_log_cmedv),2, diff)[1]),3)} to \Sexpr{round((apply(exp(hat_log_cmedv),2, diff)[3]),3)}) (in the publication is an \textit{increase} of -1613 without uncertainty provided). The computation is visible in \textsf{R}-Code~\ref{code:calc_nox} and the output thereof in Table~\ref{tab:pred_data}.
+
+\begin{program}[H]
+<<eval = F>>=
+<<calc_nox>>=
+@
+\caption{Code to predict what a one unit increase in \texttt{nox} means.}\label{code:calc_nox}
+\end{program}
+
+\begin{table}[H]\begin{center}
+\caption{Explanation of what a one unit increase in variable \texttt{nox} does to the outcome \texttt{cmedv} when all variables are held at their mean value. The predictions are done for the estimate (E) and the lower (L) and upper (U) bound of the 95\% confidence interval for the \texttt{I(nox\textasciicircum 2)} variable. The other effects are hold at the corresponding effect estimate without considering the uncertainty. }\label{tab:pred_data}
+<<pred_data, results = "asis", echo = FALSE, warning=F, message=F>>=
+library(tableone);library(xtable); library(stringr); library(dplyr)
+colnames(dd_pred) <- c( colnames(model.matrix(mpaper)),
+                        "$\\hat{L-\\log(\\text{cmedv})}$",
+                        "$\\hat{E-\\log(\\text{cmedv})}$",
+                        "$\\hat{U-\\log(\\text{cmedv})}$",
+                        "$\\hat{L-\\text{cmedv}}$",
+                        "$\\hat{E-\\text{cmedv}}$",
+                        "$\\hat{U-\\text{cmedv}}$"
+                        )
+colnames(dd_pred) <- str_replace(colnames(dd_pred) , "\\^",  "\\\\textasciicircum " )
+dd_pred <- dd_pred %>%  mutate_if(is.numeric, round,digits = 3)
+
+d1 <- rbind(
+   colnames(dd_pred[,1:7]),
+  as.matrix(dd_pred[,1:7])
+  ) ; colnames(d1) <-NULL
+d2 <- rbind(colnames(dd_pred[,8:14]), as.matrix(dd_pred[,8:14])); colnames(d2) <-NULL
+d3 <- rbind(colnames(dd_pred[,15:ncol(dd_pred)]), as.matrix(dd_pred[,15:ncol(dd_pred)])); colnames(d3) <-NULL
+d3 <- cbind("", d3)
+xtab <- xtable( rbind(d1,d2,d3))
+digits(xtab) <- 3
+
+print(xtab, showAllLevels = TRUE, booktabs = TRUE,size = "footnotesize",
+      include.rownames=FALSE,include.colnames=FALSE, printToggle = FALSE, noSpaces = TRUE, floating = FALSE,
+      hline.after = c(-1,1,3,4,6,7,nrow(xtab)),
+      sanitize.text.function=function(x){x})
+
+@
+\end{center}\end{table}
+
+%====================================================
+\subsection{Collinearity diagnostics in the model}
+%====================================================
+
+\cite{Harrison1978} were aware that the multiple linear regression can induce collinearity, as they specifically looked for any signs of it with the procedures described in a working paper of \cite{BelsleyKlema1974}. They came to the conclusion that the amount is rather harmless, as they say they have rather high singular values (would be column \texttt{mu} in Table~\ref{tab:vardecomp}). But the working paper does not fully agree with the procedures that came up later in \cite{Belsley1980}. Because the newer findings suggest that diagnostics are specifically based on the equilibrated design matrix $\boldsymbol{E}_\text{Boston}$ and not on $\X_\text{Boston}$. The calculated condition number $\kappa\left(\boldsymbol{E}_\text{Boston}\right)=\Sexpr{cond_nu}$ would then mean that there is consequential collinearity present. Table~\ref{tab:vardecomp} shows the whole variance decomposition matrix employed on the equilibrated design matrix $\boldsymbol{E}_\text{Boston}$. This is a more detailed collinearity diagnostics than only looking at a single condition number, and is also suggested by \cite{Belsley1980}.
+
+\begin{table}[H]\begin{center}
+\caption{Variance decomposition matrix for the \textit{Basic equation} model in \textsf{R}-Code~\ref{code:boston} ($\boldsymbol{E}_\text{Boston}$).}\label{tab:vardecomp}
+<<vardecomp, results = "asis", echo = FALSE, warning=FALSE,message=F>>=
+library(tableone);library(xtable); library(stringr); library(dplyr)
+
+vdm <- Collinearity::Var_decom_mat.lm(mpaper)
+colnames(vdm) <- str_replace(colnames(vdm) , "\\^",  "\\\\textasciicircum " )
+colnames(vdm) <- str_replace(colnames(vdm) , "\\_",  "\\\\_" )
+bre <- ncol(vdm)
+d1 <- rbind(colnames(vdm[,1:((bre+2)/2)]), vdm[,1:((bre+2)/2)]);
+colnames(d1) <-NULL
+d2 <- rbind(colnames(vdm[,(1+ (bre+2)/2):bre]), vdm[,(1+ (bre+2)/2):bre]);
+colnames(d2) <-NULL
+d2 <- cbind(d1[,1:2], d2)
+xtab <- xtable( rbind(d1,d2))
+digits(xtab) <- 3
+
+print(xtab, showAllLevels = TRUE, booktabs = TRUE,size = "footnotesize",
+      include.rownames=FALSE,include.colnames=FALSE, printToggle = FALSE, noSpaces = TRUE, floating = FALSE,
+      hline.after = c(-1,1,nrow(d1), nrow(d1)+1,nrow(xtab)),
+      sanitize.text.function=function(x){x})
+
+@
+\end{center}\end{table}
+
+%https://www.nber.org/system/files/working_papers/w0066/w0066.pdfhttps://www.nber.org/system/files/working_papers/w0066/w0066.pdf
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Parametrization by \texttt{tram} vignette }
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+\cite{Harrison1978} modeled housing prices with a rather complex model with numerous variables and also some transformations thereof. They did not specifically state all their actions, and thus it is questionable if independent researchers had been able to replicate the results. For example, \textsf{R}-Code~\ref{code:tram} shows the model with non-transformed variables, as it is also used in the \texttt{tram} package vignette. This can of course lead to different results and collinearity magnitudes, as we see in Tables~\ref{tab:reg_tram} and \ref{tab:vardecomp_tram}.
+\begin{program}[h]
+<<eval = F>>=
+msimpler <- lm(data = BostonHousing2, cmedv ~ nox +  rm + age +
+               dis + rad + tax + ptratio + b + lstat + crim +
+               zn + indus + chas )
+@
+\caption{Modeling housing prices without transformed variables.}\label{code:tram}
+\end{program}
+
+<<reg_tram, results = "asis",echo=FALSE>>=
+msimpler <- lm(data = BostonHousing2, cmedv ~ nox +  rm + age +
+               dis + rad + tax + ptratio + b + lstat + crim +
+               zn + indus + chas )
+cond_nu_simpler <- max(Collinearity::Var_decom_mat.lm(msimpler, equilibration=TRUE)[,"cond_ind"])
+# printing results
+library(biostatUZH);library(xtable)
+tableRegression(msimpler, stats = c("estimate", "ci.95","t.value", "p.value"),
+                col.nam = c("$\\hat\\beta$", "95\\% confidence interval",
+                            "$t$-value", "$p$-value"),
+                caption = 'Analyzing Boston Housing prices with the multiple linear regression model without transformed variables. Outcome variable is the (corrected) median value of the owner occupied homes in USD (\\texttt{cmedv}).',
+                caption.placement = "top",
+                label = "tab:reg_tram", booktabs = TRUE)
+@
+
+\begin{table}[h]\begin{center}
+\caption{Variance decomposition matrix for the model used in the \texttt{tram} vignette in \textsf{R}-Code~\ref{code:tram} ($\boldsymbol{E}_\text{non-trans.}$).}\label{tab:vardecomp_tram}
+<<vardecomp_tram, results = "asis", echo = FALSE, warning=FALSE,message=F>>=
+library(tableone);library(xtable); library(stringr); library(dplyr)
+vdm <- Collinearity::Var_decom_mat.lm(msimpler)
+colnames(vdm) <- str_replace(colnames(vdm) , "\\^",  "\\\\textasciicircum " )
+colnames(vdm) <- str_replace(colnames(vdm) , "\\_",  "\\\\_" )
+bre <- ncol(vdm)
+d1 <- rbind(colnames(vdm[,1:((bre+2)/2)]), vdm[,1:((bre+2)/2)]);
+colnames(d1) <-NULL
+d2 <- rbind(colnames(vdm[,(1+ (bre+2)/2):bre]), vdm[,(1+ (bre+2)/2):bre]);
+colnames(d2) <-NULL
+d2 <- cbind(d1[,1:2], d2)
+xtab <- xtable( rbind(d1,d2))
+digits(xtab) <- 3
+
+print(xtab, showAllLevels = TRUE, booktabs = TRUE,size = "footnotesize",
+      include.rownames=FALSE,include.colnames=FALSE, printToggle = FALSE, noSpaces = TRUE, floating = FALSE,
+      hline.after = c(-1,1,nrow(d1), nrow(d1)+1,nrow(xtab)),
+      sanitize.text.function=function(x){x})
+
+@
+\end{center}\end{table}
+
+The linearity of the model lets us easily interpret the effect of the variable \texttt{nox} (non-transformed) on the housing prices: A one unit increase in \texttt{nox} leads to an \textit{increase} of \Sexpr{round(coef(msimpler)["nox"],3)} (from \Sexpr{round(confint(msimpler)["nox",1],3)} to \Sexpr{round(confint(msimpler)["nox",2],3)}). With the parametrization by \cite{Harrison1978} again: \textit{increases} by \Sexpr{round((apply(exp(hat_log_cmedv),2, diff)[2]),3)} (from \Sexpr{round((apply(exp(hat_log_cmedv),2, diff)[1]),3)} to \Sexpr{round((apply(exp(hat_log_cmedv),2, diff)[3]),3)}). The non-transformed model (\textsf{R}-Code~\ref{code:tram}) also leads to different collinearity magnitudes, as visible in Table~\ref{tab:vardecomp_tram} and a condition number of $\kappa\left(\boldsymbol{E}_\text{non-trans.}\right)=\Sexpr{cond_nu_simpler}$ which was earlier $\kappa\left(\boldsymbol{E}_\text{Boston}\right)=\Sexpr{cond_nu}$.
+
+This demonstrates that different parametrization can lead to different results and different collinearity even with the same underlying data in terms of sample size and number of variables used. This should be kept in mind.
+
+

@@ -1,0 +1,479 @@
+% LaTeX file for Chapter 07
+
+<<'preamble07',include=FALSE, cache=FALSE>>=
+# clear memory
+rm(list = ls())
+library(knitr)
+library(tram)
+opts_chunk$set(
+    fig.path='figure/ch07_fig', 
+    self.contained=FALSE,
+    cache=TRUE, # reduced time if TRUE
+    dev = "png" # reduced size!
+)
+@
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Results: Collinearity fingerprint and graph}\label{chap:collfinger}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+<<startingchunk, echo=F,eval = T,message=F,warning=F>>=
+library(Collinearity)
+library(tidyverse)
+library(mlbench)
+data("BostonHousing2", package = "mlbench")
+
+# reconstruct original
+BostonHousing2$cmedv <- BostonHousing2$cmedv*1000
+BostonHousing2$nox <- BostonHousing2$nox*10
+BostonHousing2$lstat <- BostonHousing2$lstat/100
+
+BostonHousing2$b <- BostonHousing2$b /1000
+BostonHousing2$B <- sqrt(BostonHousing2$b) + 0.63
+
+BostonHousing2$chas <- as.integer(BostonHousing2$chas)
+
+mpaper <- lm(data = BostonHousing2, log(cmedv) ~ I(nox^2) +  I(rm^2) + age + log(dis) + log(rad) + tax + ptratio + b + log(lstat) + crim + zn + indus + chas )
+cond_nu <- max(Collinearity::Var_decom_mat.lm(mpaper, equilibration=TRUE)[,"cond_ind"])
+@
+
+We are approaching the end of this master thesis and have now more knowledge about the troubles that come with collinearity.
+Therefore, let us revise on the paper of \cite{Harrison1978} introduced in Chapter~\ref{chap:boston_intro}. It seems that they have arrived at their goal to investigate the willingness to pay for clean air. They found a one unit increase in $\texttt{nox}^2$ (\texttt{nox}: Nitrogen oxide concentration in pphm) leads to an increase in $\log\left(\text{Median value of owner-occupied homes in USD}\right)$ of \Sexpr{round(summary(mpaper)$coef[2,1],4)} with 95\% confidence interval of (\Sexpr{round(confint(mpaper)[2,],4)}).
+Since the confidence interval does not include zero, the result is said to be statistically significant on the 95\% confidence level.
+
+Now time has passed since 1978 and maybe someone wants to reproduce the results or want to conduct a similar study in a different area. A natural question that arises is the number of observations that are needed to show the effect given it is there. The number of observations in \cite{Harrison1978} is $n=\Sexpr{nrow(BostonHousing2)}$ and each point belongs to a certain census tract in the Boston Standard Metropolitan Statistical Area (SMSA) in 1970. $n=\Sexpr{nrow(BostonHousing2)}$ was enough for the researchers to make their point in terms of having statistically significant results. But what if one is interested in an area that does not have that many observations or has to be gathered first?
+
+Thus, a sample size calculation is needed. And we think there are two good reasons for this, independent of the type of research:
+\begin{enumerate}
+\item If data is already available: Determine whether a null-finding is likely due to the fact that the effect is not there or the sample size was too low to show it.
+\item If data has to be gathered: Have an idea about the amount of resources that need to be invested to get the data.
+\end{enumerate}
+Hopefully, this convinces the reader that a sample size calculation is in both cases of use.
+% ##################################
+\section{Sample size calculation}
+% ##################################
+
+% ====================================
+\subsection{Parametrization of Harrison and Rubinfeld}
+% ====================================
+
+<<echo=F, eval = T>>=
+E <- Collinearity::equilibrate_matrix(model.matrix(mpaper))
+trouble <- solve(t(E)%*%E); colnames(trouble) <-rownames(trouble) <- names(coef(mpaper))
+Delta <- sort(c(confint(mpaper)["I(nox^2)",],mpaper$coefficients["I(nox^2)"]))
+@
+
+\begin{program}[h]
+<<eval = T>>=
+# Sample size calculation
+n_boston <- Collinearity::copowerlm(power = 0.8, alpha = 0.05,
+               Delta = Delta,
+               sigma = sigma(mpaper), p= nrow(trouble) ,
+               voilen = var(BostonHousing2$nox^2)+mean(BostonHousing2$nox^2)^2,
+               trouble = diag(trouble)["I(nox^2)"] )
+n_boston <- ceiling(n_boston$n)
+@
+\caption{Application of the \texttt{copowerlm} function. \texttt{mpaper} is the so-called basic equation model fitted in \cite{Harrison1978}. The effects we want the test to be powered for is the effect we found with the model and the corresponding 95\% confidence interval boundaries as
+$\texttt{Delta}=\texttt{c}\left(\Sexpr{Delta}\right)$. The part that introduces collinearity is \texttt{trouble}=$\text{diag}\left(\left(\bE^\top\bE\right)^{-1}\right)[\texttt{"I(nox\textasciicircum 2")}]$ where $\bE$ is the equilibrated design matrix extracted from the model.}
+\label{code:nboston}
+\end{program}
+
+Let us have a first look at how many observations \cite{Harrison1978} really would have needed to show the same effect with a common power of 80\%. Since we are no expert in this field of study, a determination of a relevant effect size from our side may be quite arbitrary. Thus, we will do the sample size calculation for 3 different effect sizes, namely the effect estimate and the lower and upper bound of the corresponding 95\% confidence interval (computed in Table~\ref{tab:reg_bo}).
+
+Thus, we apply \texttt{copowerlm} as is visible in \textsf{R}-Code~\ref{code:nboston} and from this calculation we get $n=\texttt{c}\left(\Sexpr{n_boston}\right)$. Since we know the underlying effect size of the model, we can verify the sample size calculation by repeated sampling of $n=\Sexpr{n_boston[2]}$ observations without replacement and subsequent model fitting.
+
+<<power_emp,echo=F>>=
+set.seed(324325)
+B <- 200
+results <- c()
+
+for(i in 1:B){
+  data_current <- BostonHousing2[sample(x = 1:nrow(BostonHousing2), size = n_boston[2], replace = F), ]
+  m_lm <- lm(data = data_current,
+                  log(cmedv) ~ I(nox^2) +  I(rm^2) + age + log(dis) + log(rad) + tax + ptratio + b + log(lstat) + crim + zn + indus + chas )
+  dd_tram <- model.frame(m_lm)
+  m_tram <- tram::Lm(data = dd_tram, `log(cmedv)` ~.  )
+  cn <- max(Collinearity::Var_decom_mat.lm(m_lm, equilibration=TRUE)[,"cond_ind"])
+
+  res_lm <- cbind("variable" = names(coef(m_lm)),
+                   "est" = coef(m_lm),
+                   "se" = sqrt(diag(vcov(m_lm))),
+                   "cond_nu" = cn,
+                   "id" = i,
+               "method" = "lm")
+
+  res_tram <- cbind("variable" = names(coef(m_tram)),
+                   "est" = coef(m_tram),
+                   "se" = sqrt(diag(vcov(m_tram))),
+                   "cond_nu" = cn,
+                   "id" = i,
+               "method" = "tram::Lm")
+  res <- rbind(res_lm, res_tram); rownames(res) <-NULL
+  results <- rbind(results, res)
+}
+results <- data.frame(results) ; rownames(results) <- NULL
+results$id <- as.integer(results$id)
+results$est <- as.numeric(results$est)
+results$se <- as.numeric(results$se)
+results$cond_nu <- as.numeric(results$cond_nu)
+results$wald <- results$est/results$se
+results$sig <- as.integer(abs(results$wald) >= qnorm(p = 0.975))
+results$variable <- stringr::str_replace_all(results$variable, "`","")
+results <- results[order(results$id),]
+results <- results %>% group_by(variable, method) %>% mutate("power" = sum(sig)/n())
+@
+
+\begin{figure}[h!]%H is strict!
+\begin{center}
+<<wald_sig_plot, fig.height = 3.5, fig.width = 6,echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE, dev='pdf'>>=
+size <- 9
+ggplot(data = results[results$variable=="I(nox^2)",], aes(x = cond_nu, y = wald,col = method,group = id))+
+  geom_rect(xmin=-Inf,xmax = Inf,ymin = -qnorm(0.975),ymax = qnorm(0.975),
+            fill = "#FFCCCC" ,col =NA,show.legend = F)+
+  geom_line()+
+  geom_point()+
+  #facet_grid(~method)+
+  scale_alpha_continuous(range = c(0.3, 1.5))+
+  theme_classic()+theme(legend.position="bottom")+
+  labs(title = bquote("Wald statistics for I(nox^2):"~hat(t)[i] ),
+       y = "Estimate / SE", x=bquote("Condition Number"~kappa(bold(E)))  )+
+  guides(colour = guide_legend(override.aes = list(shape = 19,alpha = 1,size=1)))+
+  geom_vline(xintercept = mean(results$cond_nu[results$method=="lm"]),lty = 2)+
+  annotate("text", x=mean(results$cond_nu[results$method=="lm"]), y=-Inf, hjust =1, vjust = -1,check_overlap = T,
+           label=bquote(mean(kappa(bold(E)))~"="~.( round(mean(results$cond_nu[results$method=="lm"]),1)  ) ) )+
+  scale_color_discrete(name = "Method:")+
+    theme(axis.text = element_text(size = size),
+      axis.text.x = element_text(size = size),
+      axis.text.y = element_text(size = size),
+      axis.title = element_text(size = size),
+      plot.title = element_text(size = size),
+      legend.text=element_text(size = size)
+      )
+@
+\end{center}
+\vspace*{-0.7cm}
+\caption{Wald statistics dynamic for $B=\Sexpr{B}$ repeated draws of size $n=\Sexpr{n_boston[2]}$ from the whole \texttt{BostonHousing2} data set to verify the sample size calculation. The empirically determined power for variable $\texttt{nox}^2$ is \Sexpr{sum(results$sig[results$method =="lm" & results$variable=="I(nox^2)"])/B} for the \texttt{lm} model and \Sexpr{sum(results$sig[results$method =="tram::Lm" & results$variable=="I(nox^2)"])/B} for the \texttt{tram::Lm} model.}
+\label{fig:wald_sig_plot}
+\end{figure}
+
+Figure~\ref{fig:wald_sig_plot} shows the Wald statistics of the repeatedly drawn data sets plotted against the calculated condition number for both methods. The empirically determined power for variable $\texttt{nox}^2$ is for the \texttt{lm} model \Sexpr{sum(results$sig[results$method =="lm" & results$variable=="I(nox^2)"])/B} which is quite close to the initially wanted power of 0.80. The power for the \texttt{tram::Lm} model is with \Sexpr{sum(results$sig[results$method =="tram::Lm" & results$variable=="I(nox^2)"])/B} slightly higher than in the \texttt{lm} case. Although the sample size calculation is based on the least-squares approach and parametrization, it seems to be the case that the results from \texttt{tram::Lm} behave for this particular example similarly to the results of \texttt{lm}.
+
+% \begin{figure}[h!]%H is strict!
+% \begin{center}
+<<ws_ni_plot, fig.height = 15, fig.width = 12,echo=FALSE, eval=F, message=FALSE, warning=FALSE>>=
+ggplot(data = results[results$variable!="I(nox^2)" & results$variable!="(Intercept)",], aes(x = cond_nu, y = wald,col = method,group = variable))+
+  geom_rect(xmin=-Inf,xmax = Inf,ymin = -qnorm(0.975),ymax = qnorm(0.975),
+            fill = "#FFCCCC" ,col =NA,show.legend = F)+
+  geom_line()+
+  geom_point()+
+  facet_grid(variable~method,scales = "free")+
+  scale_alpha_continuous(range = c(0.3, 1.5))+
+  theme_classic()+theme(legend.position="none")+
+  #geom_vline(xintercept=30,col = "red", lty = 3)+
+  labs(title = bquote("Wald statistics for confounding variables: "~hat(t)[ij]), y = "Estimate / SE", x=bquote("Condition Number"~kappa(bold(E)))  )+
+  guides(colour = guide_legend(override.aes = list(shape = 19,alpha = 1,size=1)))+
+  geom_vline(xintercept = mean(results$cond_nu[results$method=="lm"]),lty = 2)+
+  geom_text(aes(label=paste0("Power: ",round(power,3) )),x=-Inf, y=Inf,col = "black",hjust = "inward", vjust = "inward",check_overlap = TRUE)+
+  scale_color_discrete(name = "Method:")
+@
+% \end{center}
+% \caption{Wald statistics dynamic for $B=\Sexpr{B}$ repeated draws of size $n=\Sexpr{n_boston[2]}$ from the whole \texttt{BostonHousing2} data set for the variables that are not of primary interest.}
+% \label{fig:ws_ni_plot}
+% \end{figure}
+
+% ====================================
+\subsection{Non-transformed parametrization}
+% ====================================
+
+<<calc_nox_2,echo=F>>=
+# Calculating Predictions and Difference
+dd_pred  <- t(colMeans(model.matrix(mpaper)))
+dd_pred[,"chas"] <- dd_pred[,"chas"]
+colnames(dd_pred) <- colnames(model.matrix(mpaper))
+dd_pred <- dd_pred[rep(1,2),]
+dd_pred[,2] <- (sqrt(dd_pred[,2]) + 0:(nrow(dd_pred)-1) )^2
+#hat_log_cmedv <- dd_pred %*% coef(mpaper)
+beta <- cbind(coef(mpaper),coef(mpaper),coef(mpaper))
+beta["I(nox^2)", c(1,3)] <- confint(mpaper)["I(nox^2)",]
+hat_log_cmedv <- dd_pred %*% beta
+dd_pred <- data.frame(dd_pred, hat_log_cmedv, exp(hat_log_cmedv))
+
+Delta <- apply(dd_pred[,(ncol(dd_pred)-2):ncol(dd_pred)],2,diff)
+@
+
+We also do the same sample size calculation for the non-transformed parametrization. We want to have the model powered for the same relevant effect size, and thus we take \texttt{Delta=c}(\Sexpr{round(Delta,3)}) which corresponds to the translated estimate from the \texttt{mpaper} model as already described in Section~\ref{sec:basiceqboston}.
+
+<<echo=F, eval = T>>=
+msimpler <- lm(data = BostonHousing2, cmedv ~ nox +  rm + age +
+               dis + rad + tax + ptratio + b + lstat + crim +
+               zn + indus + chas )
+Esimpler <- Collinearity::equilibrate_matrix(model.matrix(msimpler))
+troublesimpler <- solve(t(Esimpler)%*%Esimpler); colnames(troublesimpler) <-rownames(troublesimpler) <- names(coef(msimpler))
+@
+
+\begin{program}[h]
+<<eval = T>>=
+# Sample size calculation
+n_simpler <- Collinearity::copowerlm(power = 0.8, alpha = 0.05,
+                     Delta = Delta,
+                     sigma = sigma(msimpler), p= nrow(troublesimpler) ,
+                     voilen = var(BostonHousing2$nox)+mean(BostonHousing2$nox)^2,
+                     trouble = diag(troublesimpler)["nox"] )
+n_simpler <- ceiling(n_simpler$n)
+@
+\caption{Application of the \texttt{copowerlm} function. \texttt{msimpler} is the simpler model fitted without any transformation of the variables. The effects we want the test to be powered for is the effect and the corresponding 95\% confidence interval boundaries determined by the model fitted in \cite{Harrison1978} but translated on the original housing value scale (\ref{sec:basiceqboston}). Thus, $\texttt{Delta}=\texttt{c}\left(\Sexpr{round(Delta,3)}\right)$. The part that introduces collinearity is \texttt{trouble}=$\text{diag}\left(\left(\bE^\top\bE\right)^{-1}\right)[\texttt{"I(nox\textasciicircum 2")}]$ where $\bE$ is the equilibrated design matrix extracted from the model.}\label{code:nsimpler}
+\end{program}
+
+\textsf{R}-Code~\ref{code:nsimpler} shows the computation which results in sample sizes of $n=\texttt{c}$(\Sexpr{n_simpler}) and thus we note that with this model we need a considerable amount more data to arrive at the same power.
+
+% ##################################
+\section{Collinearity fingerprint with bootstrap}
+% ##################################
+
+We have seen that collinearity can lead to unstable effect estimates. This usually results in a non-detection as the standard error of the effect estimate overwhelms the signal. But there are situations, especially when the sample size is low, where this is not the case and signals are proportionally high and result in a large Wald statistics. Due to the instability, these signals can point into the wrong direction, which is very dangerous in terms of making a decision. Thus, it is crucial to invest the reliability of the estimation process when high collinearity is present, especially when accompanied by low sample sizes.
+
+Investigating the reliability can be checked for instance with bootstrapping \citep{Efron1986} as it is also done for example in selecting variables \citep{Altman1989,Heinze2018}.
+This idea is implemented in the function \texttt{Collinearity::cofingerprint}.
+In our situation this means that for one bootstrap sample we draw from the \texttt{BostonHousing2} data set \Sexpr{nrow(model.matrix(mpaper))} observations with replacement. Then, for each of these data sets, the model is again fitted. Plotting this procedure on the scale of the Wald statistics shows whether significant results can be trusted or not. Figure~\ref{fig:coll_boot1} shows the results for the parametrization that is used in the paper for the least-squares and transformation model, and Figure~\ref{fig:coll_boot2} shows the same for the non-transformed model. Although as mentioned in Section~\ref{sec:mltramLM} the design matrix and therefore also the variance decomposition is not exactly defined, the investigation of the collinearity fingerprint is applied on the part of the model that is returned by the command \texttt{model.matrix()}. For the \texttt{lm} case this means that the intercept is also investigated, but for the \texttt{tram::Lm} model only the explanatory variables without transformation function parts are provided.
+
+\begin{program}[H]
+<<eval = F>>=
+# Collinearity fingerprint with bootstrap
+Collinearity::cofingerprint(mpaper,
+        B = B,
+        ncon = ncon, # Number of printed condition indices
+        main = "Collinearity Fingerprint - Least Squares (lm)",
+        alpha = 0.05,
+        cex.vd = 1.4, cex.main = 1.5, cex.prop  = 0.9, ydi = 10
+        )
+@
+\caption{Application of the \texttt{cofingerprint} function. \texttt{mpaper} is the so called basic equation model fitted in \cite{Harrison1978}. The source code of the function \texttt{cofingerprint} can be found in the \texttt{Collinearity} package.}\label{code:collfingerprint}
+\end{program}
+
+\newpage
+\begin{figure}[H]%H is strict!
+\centering
+<<coll_boot11, fig.height = 8, fig.width = 12,echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE>>=
+# Show intercept or not option?
+B <- 500
+ncon <- 3
+alpha <- 0.05
+set.seed(324324)
+Collinearity::cofingerprint(mpaper,
+        B = B,
+        ncon = ncon,
+        main = "Collinearity Fingerprint - Least Squares (lm)",
+        alpha = alpha,
+        cex.vd = 1.,
+        cex.main = 1.5,
+        cex.prop  = 0.9,
+        ydi = 10
+        )
+
+
+mpaper_tram <- tram::Lm(data = model.frame(mpaper), `log(cmedv)` ~.  )
+
+set.seed(324324)
+Collinearity::cofingerprint(mpaper_tram,
+        B = B,
+        ncon = ncon,
+        main = "Collinearity Fingerprint - Transformation model (tram::Lm)",
+        alpha = alpha,
+        cex.vd = 1.,
+        cex.main = 1.5,
+        cex.prop  = 0.9,
+        ydi = 5
+        )
+@
+\vspace*{-10mm}
+\caption{Wald statistics dynamic for $B=\Sexpr{B}$ repeated draws of size $n=\Sexpr{nrow(model.matrix(mpaper))}$ with replacement from the whole \texttt{BostonHousing2} data set with the model used in \cite{Harrison1978}. Underneath the title of the plot are the condition indices printed determined with the \texttt{Collinearity} package, and the \Sexpr{ncon} largest thereof are also visualized within the plot.
+The variance proportions are also added with the strength of color corresponding to their size, meaning that lower proportions are more likely to be transparent. In addition, the proportion of $t$ values that are considered as significant on the \Sexpr{alpha*100}\% significance level is printed as well for each variable.}
+\label{fig:coll_boot1}
+\end{figure}
+
+\newpage
+\begin{figure}[H]%H is strict!
+\begin{center}
+<<coll_boot2, fig.height = 8, fig.width = 12,echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE>>=
+# Show intercept or not option?
+B <- 500
+ncon <- 2
+par(mfrow  = c(2,1))
+set.seed(324324)
+msimpler <- lm(data = BostonHousing2, cmedv ~ nox +  rm + age +
+               dis + rad + tax + ptratio + b + lstat + crim +
+               zn + indus + chas )
+
+Collinearity::cofingerprint(msimpler,
+        B = B,
+        ncon = ncon,
+        main = "Collinearity Fingerprint - Least Squares (lm)",
+        alpha = 0.05,
+        cex.vd = 1.,
+        cex.main = 1.5,
+        cex.prop  = 0.9,
+        ydi = 3
+        )
+
+set.seed(324324)
+msimpler_tram <- tram::Lm(data = BostonHousing2, cmedv ~ nox +  rm + age +
+               dis + rad + tax + ptratio + b + lstat + crim +
+               zn + indus + chas )
+Collinearity::cofingerprint(msimpler_tram,
+        B = B,
+        ncon = ncon,
+        main = "Collinearity Fingerprint - Transformation model (tram::Lm)",
+        alpha = 0.05,
+        cex.vd = 1.,
+        cex.main = 1.5,
+        cex.prop  = 0.9,
+        ydi = 3
+        )
+@
+\end{center}
+\vspace*{-10mm}
+\caption{Wald statistics dynamic for $B=\Sexpr{B}$ repeated draws of size $n=\Sexpr{nrow(model.matrix(mpaper))}$ with replacement from the whole \texttt{BostonHousing2} data set with the simpler model using all variables non-transformed. Underneath the title of the plot are the condition indices printed determined with the \texttt{Collinearity} package, and the \Sexpr{ncon} largest thereof are also visualized within the plot.
+The variance proportions are also added with the strength of color corresponding to their size, meaning that lower proportions are more likely to be transparent. In addition, the proportion of $t$ values that are considered as significant on the \Sexpr{alpha*100}\% significance level is printed as well for each variable.}
+\label{fig:coll_boot2}
+\end{figure}
+
+
+% ##################################
+\section{Collinearity zoom-in: Who is responsible?}
+% ##################################
+
+Equation~\eqref{eq:squaredwaldpart} points out four key components why a signal can go undetected, and the part that relates to collinearity is the $\bR_\X^2$ term, which describes how well the variable of interest can be explained by a linear combination of the other remaining variables (\ref{sec:rsquared}). However, the $\bR_\X^2$ is a single value and does not tell which variable specifically explains the variable of interest well and is therefore responsible for the potentially inconvenient results. Thus, to investigate this issue further, we visualize the relation of the variable of interest to all the other explanatory variables by a multiple linear regression model.
+Figure~\ref{fig:dag} illustrates this concept that is integrated in the \texttt{Collinearity::cotograph} function.
+The $\bR_\X^2$ value is plotted in the central node that corresponds to the variable of interest (\texttt{voi}).
+Variables that have a high Wald statistics ($t$) have high explanatory power of the variable of interest and should be closely inspected.
+
+Still, this diagnostics is also susceptible to collinearity, which means that a high $\bR_\X^2$ can appear even without high individual Wald statistics, since collinearity within this model also leads to the effect to go undetected. 
+Thus, we can say that variables associated with high $t$ will contribute to  high $\bR_\X^2$, but it does not necessarily detect all variables.
+The \texttt{cotograph} function has an argument, \texttt{subR2}, which by default is set to \texttt{FALSE}, but can be changed to \texttt{TRUE} to understand the underlying collinearity not directly related to the variable of interest. With \texttt{subR2} set to \texttt{TRUE}, a separate multiple linear regression model is fitted for each explanatory variable, excluding the variable of interest (\texttt{voi}). The fits are then quantified by $\bR_\X^2$ and displayed in the nodes of the corresponding variable. Explanatory variables with high $\bR_\X^2$ values are affected by collinearity, meaning their effect on the variable of interest (\texttt{voi}) is weakened, expressed by a lower $t$.
+% To get an idea about the underlying collinearity that does not directly relate to the variable of interest, \texttt{cotograph} has the argument \texttt{subR2} which is per default \texttt{FALSE} but can be turned to \texttt{TRUE}. By doing this, for each explanatory variable a separate multiple linear regression model is fitted containing all other explanatory variables apart from \texttt{voi}.
+% All the fits are then also quantified by $\bR_\X^2$ and appear in the nodes of the corresponding variable.
+% Explanatory variables that are accompanied by a large \texttt{subR2} are affected by collinearity, meaning that their effect on the variable of interest is attenuated expressed by a lower $t$.
+
+All diagnostic measures in these plots are calculated with the least-squares method and the variables considered in the plot are the ones that appear when calling the command \texttt{model.matrix()} which provides for the \texttt{lm} model the explanatory variables including intercept if used. For the \texttt{tram::Lm} model, only the explanatory variables are returned, and we remind that the part corresponding to the transformation of the outcome may also contribute to collinearity but is not inspected in this case.
+Furthermore, this diagnostic procedure does not necessarily have to agree with the Variance decomposition matrix suggested by Belsley in Tables~\ref{tab:vardecomp} and \ref{tab:vardecomp_tram}.
+This, because Belsley's procedure quantifies the overall collinearity composition and does not target one specific variable of interest, as it is done in the \texttt{Collinearity::cotograph} function.
+Thus, \texttt{cotograph} provides more an alternative to the Variance decomposition matrix.
+
+\begin{program}[h!]
+<<eval = F>>=
+# Collinearity zoom-in
+Collinearity::cotograph(m=mpaper,voi = "I(nox^2)", equilibrate = FALSE,
+   main = "Graph: Relation of explanatory variables\n Multivariable fitted Model",
+   cex.node = 1, cex.tovoi = 1, cex.main = 1,
+   col.edge.line = "blue", col.edge.text = "black",col.node.voi = "green",
+   col.node.nonvoi = "lightblue",
+   radius_circle = 0.2, subR2 = TRUE, mar = c(.1, .1,2.1, .1)
+         )
+@
+\caption{Application of the \texttt{cotograph} function. \texttt{mpaper} is the so called basic equation model fitted in \cite{Harrison1978}. The source code of the function \texttt{cotograph} can be found in the \texttt{Collinearity} package.}\label{code:zoomin_applied}
+\end{program}
+
+
+
+\newpage
+
+\begin{figure}[H]%H is strict!
+\begin{center}
+<<collgraph, fig.height = 13, fig.width = 10,echo=FALSE, eval=TRUE, message=FALSE, warning=FALSE>>=
+#dev.off()
+par(mfrow = c(3,2))
+
+Collinearity::cotograph(m=mpaper,voi = "I(nox^2)",
+       main = "Graph: Relation of explanatory variables\n Multivariable fitted Model",
+       cex.node = 1,
+       cex.tovoi = 1,
+       cex.main = 1,
+       col.edge.line = "blue",
+       col.edge.text = "black",
+       col.node.voi = "green",
+       col.node.nonvoi = "lightblue",
+       radius_circle = 0.2,
+       subR2 = TRUE,
+       mar = c(.1, .1,2.1, .1)
+         )
+
+Collinearity::cotograph(m=msimpler,voi = "nox",
+         main = "Graph: Relation of explanatory variables\n Multivariable fitted Model",
+         cex.node = 1,
+         cex.tovoi = 1,
+         cex.main = 1,
+         col.edge.line = "blue",
+         col.edge.text = "black",
+         col.node.voi = "green",
+         col.node.nonvoi = "lightblue",
+         radius_circle = 0.2,
+        subR2 = TRUE,
+        mar = c(.1, .1,2.1, .1)
+        )
+
+Collinearity::cotograph(m=mpaper_tram,voi = "I(nox^2)",
+       main = "Graph: Relation of explanatory variables\n Multivariable fitted Model",
+       cex.node = 1,
+       cex.tovoi = 1,
+       cex.main = 1,
+       col.edge.line = "blue",
+       col.edge.text = "black",
+       col.node.voi = "green",
+       col.node.nonvoi = "orange",
+       radius_circle = 0.2,
+       subR2 = TRUE,
+       mar = c(.1, .1,2.1, .1)
+         )
+
+
+Collinearity::cotograph(m=msimpler_tram,voi = "nox",
+       main = "Graph: Relation of explanatory variables\n Multivariable fitted Model",
+       cex.node = 1,
+       cex.tovoi = 1,
+       cex.main = 1,
+       col.edge.line = "blue",
+       col.edge.text = "black",
+       col.node.voi = "green",
+       col.node.nonvoi = "orange",
+       radius_circle = 0.2,
+       subR2 = TRUE,
+       mar = c(.1, .1,2.1, .1)
+         )
+
+
+# equlibrated
+Collinearity::cotograph(m=mpaper,voi = "I(nox^2)",
+          equilibrate = TRUE,
+       main = "Graph: Relation of explanatory variables\n Multivariable fitted Model",
+       cex.node = 1,
+       cex.tovoi = 1,
+       cex.main = 1,
+       col.edge.line = "blue",
+       col.edge.text = "black",
+       col.node.voi = "green",
+       col.node.nonvoi = "lightgreen",
+       radius_circle = 0.2,
+       subR2 = TRUE,
+       mar = c(.1, .1,2.1, .1)
+         )
+
+Collinearity::cotograph(m=msimpler,voi = "nox",
+          equilibrate = TRUE,
+         main = "Graph: Relation of explanatory variables\n Multivariable fitted Model",
+         cex.node = 1,
+         cex.tovoi = 1,
+         cex.main = 1,
+         col.edge.line = "blue",
+         col.edge.text = "black",
+         col.node.voi = "green",
+         col.node.nonvoi = "lightgreen",
+         radius_circle = 0.2,
+        subR2 = TRUE,
+        mar = c(.1, .1,2.1, .1)
+        )
+@
+\end{center}
+\vspace{-1cm}
+\caption{Graphical representation of the relation of the variable of interest (\texttt{voi}) in the middle of the plots and the remaining explanatory variables.  The left column represents the model fitted in \cite{Harrison1978} and on the right side is the simpler model with the non-transformed variables according to the \texttt{tram} vignette. The first row of plots illustrate models originally fitted via the least squares method, the second row the ones fitted with the transformation model equivalent and the third row are fitted with the least squares method but on the equilibrated design matrix. The multiple fitted model points out which variables can describe \texttt{voi} well and are thus associated with a high $t$. Since this model also is susceptible to collinearity and the effects thereof, one can only say that variables associated with a high $t$ value take part in collinearity, but one does not know for sure if others also contribute. }
+\label{fig:dag}
+\end{figure}
